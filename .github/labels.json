@@ -1,0 +1,47 @@
+[
+    {
+        "name": "feature",
+        "color": "375E97",
+        "description": "種別: 新機能"
+    },
+    {
+        "name": "bug",
+        "color": "FF0000",
+        "description": "種別: バグ"
+    },
+    {
+        "name": "error",
+        "color": "D95B43",
+        "description": "種別: エラー"
+    },
+    {
+        "name": "enhancement",
+        "color": "84DCC6",
+        "description": "種別: 機能改善"
+    },
+    {
+        "name": "documentation",
+        "color": "0075CA",
+        "description": "種別: ドキュメント"
+    },
+    {
+        "name": "question",
+        "color": "D876E3",
+        "description": "種別: 質問"
+    },
+    {
+        "name": "priority:high",
+        "color": "FF0000",
+        "description": "優先度: 高"
+    },
+    {
+        "name": "priority:medium",
+        "color": "FFA500",
+        "description": "優先度: 中"
+    },
+    {
+        "name": "priority:low",
+        "color": "FFFF00",
+        "description": "優先度: 低"
+    }
+]
