@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'pages/auth_page.dart'; // 追加: auth_page.dart のインポート
+import 'pages/root_page.dart';
 
 void main() {
   runApp(const MainApp());
@@ -9,12 +11,8 @@ class MainApp extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return const MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('Hello World!'),
-        ),
-      ),
+    return MaterialApp(
+      home: RootPage(), // 変更: LoginPage に遷移
     );
   }
 }
