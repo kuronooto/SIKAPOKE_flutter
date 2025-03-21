@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "454172092919",
+    "project_id": "sikapoke-42416",
+    "storage_bucket": "sikapoke-42416.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:454172092919:android:00f313fa8261e938f7e6f2",
+        "android_client_info": {
+          "package_name": "com.example.sikapoke_flutter"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyCAqamxkz4rvbBW536U9xkImAYazbl9yQ8"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
