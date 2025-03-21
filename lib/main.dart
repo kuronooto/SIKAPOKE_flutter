@@ -1,8 +1,11 @@
+import 'package:firebase_core/firebase_core.dart'; // 追加: Firebase Core のインポート
 import 'package:flutter/material.dart';
-import 'pages/auth_page.dart'; // 追加: auth_page.dart のインポート
+import 'package:sikapoke_flutter/firebase_options.dart';
 import 'pages/root_page.dart';
 
-void main() {
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
   runApp(const MainApp());
 }
 
