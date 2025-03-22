@@ -4,7 +4,6 @@ import '../../../models/pack_model.dart';
 
 typedef SwipeDirectionCallback = void Function(SwipeDirection direction);
 
-// スワイプ方向を示す列挙型
 enum SwipeDirection { left, right }
 
 class PackCard extends StatefulWidget {
@@ -13,7 +12,6 @@ class PackCard extends StatefulWidget {
   final VoidCallback? onTap;
   final double scale;
   final double rotation;
-  // 新規追加: スワイプ検出時のコールバック
   final SwipeDirectionCallback? onSwipe;
 
   const PackCard({
@@ -35,13 +33,12 @@ class _PackCardState extends State<PackCard> {
   double _dragStartX = 0.0;
   double _dragCurrentX = 0.0;
   bool _isDragging = false;
-  static const double _swipeThreshold = 20.0; // スワイプ判定のしきい値
+  static const double _swipeThreshold = 20.0;
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
       onTap: widget.onTap,
-      // 新規追加: 水平スワイプの検出
       onHorizontalDragStart: (details) {
         if (widget.onSwipe != null) {
           setState(() {
@@ -62,7 +59,6 @@ class _PackCardState extends State<PackCard> {
         if (widget.onSwipe != null && _isDragging) {
           final dragDifference = _dragCurrentX - _dragStartX;
           if (dragDifference.abs() > _swipeThreshold) {
-            // しきい値を超えたらスワイプとして処理
             if (dragDifference > 0) {
               widget.onSwipe!(SwipeDirection.right);
             } else {
@@ -77,16 +73,14 @@ class _PackCardState extends State<PackCard> {
       child: Transform(
         transform:
             Matrix4.identity()
-              ..setEntry(3, 2, 0.001) // パースペクティブ効果
-              ..rotateX(0.05) // X軸で少し傾ける
-              ..scale(widget.scale), // スケール変更（引数から）
-        // Y軸回転を削除 - 常に正面を向くように
+              ..setEntry(3, 2, 0.001)
+              ..rotateX(0.05)
+              ..scale(widget.scale),
         alignment: Alignment.center,
         child: Container(
           width: 150,
           height: 210,
           decoration: BoxDecoration(
-            // ポケモンカードのような洗練されたデザイン
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -98,7 +92,6 @@ class _PackCardState extends State<PackCard> {
             ),
             borderRadius: BorderRadius.circular(15),
             boxShadow: [
-              // 3D効果のための複数の影
               BoxShadow(
                 color: Colors.black.withOpacity(0.5),
                 offset: const Offset(4, 6),
@@ -189,7 +182,7 @@ class _PackCardState extends State<PackCard> {
                     height: 40,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: Colors.deepPurple.shade800,
+                      color: widget.packData.color.withOpacity(0.8),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(15),
                         topRight: Radius.circular(15),
@@ -206,7 +199,7 @@ class _PackCardState extends State<PackCard> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'POCKET',
+                          'SIKAPOKE',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
@@ -243,7 +236,7 @@ class _PackCardState extends State<PackCard> {
                   ),
                 ),
 
-                // 中央のモンスターボールアイコン部分
+                // 中央のアイコン部分 - 統一されたデザイン
                 Positioned(
                   top: 40,
                   left: 0,
@@ -273,7 +266,7 @@ class _PackCardState extends State<PackCard> {
                       ),
                       child: Stack(
                         children: [
-                          // モンスターボール上部（白）
+                          // 上部（白）
                           Container(
                             width: 80,
                             height: 40,
@@ -285,7 +278,7 @@ class _PackCardState extends State<PackCard> {
                               ),
                             ),
                           ),
-                          // モンスターボール下部（色付き）
+                          // 下部（色付き）
                           Positioned(
                             bottom: 0,
                             child: Container(
@@ -300,7 +293,7 @@ class _PackCardState extends State<PackCard> {
                               ),
                             ),
                           ),
-                          // モンスターボール中央の線
+                          // 中央の線
                           Positioned(
                             top: 35,
                             child: Container(
@@ -309,7 +302,7 @@ class _PackCardState extends State<PackCard> {
                               color: Colors.black,
                             ),
                           ),
-                          // モンスターボール中央のボタン（3D効果付き）
+                          // 中央のボタン（3D効果付き）
                           Center(
                             child: Container(
                               width: 25,
@@ -355,7 +348,7 @@ class _PackCardState extends State<PackCard> {
                   ),
                 ),
 
-                // 下部のラベル
+                // 下部のラベル - パック名
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -364,7 +357,7 @@ class _PackCardState extends State<PackCard> {
                     height: 40,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: Colors.deepPurple.shade800,
+                      color: widget.packData.color.withOpacity(0.8),
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(15),
                         bottomRight: Radius.circular(15),

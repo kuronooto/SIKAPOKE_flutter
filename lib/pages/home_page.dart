@@ -18,16 +18,25 @@ class HomePage extends StatelessWidget {
                 // 画面遷移 (Navigatorで `PackOpeningPage` へ移動)
                 Navigator.push(
                   context,
-                  MaterialPageRoute(builder: (context) => const PackOpeningPage()),
+                  MaterialPageRoute(
+                    builder: (context) => const PackOpeningPage(),
+                  ),
                 );
               },
               style: ElevatedButton.styleFrom(
                 backgroundColor: Colors.blue,
-                padding: const EdgeInsets.symmetric(horizontal: 30, vertical: 15),
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 15,
+                ),
               ),
               child: const Text(
                 'カードパックを引く',
-                style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.white),
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: Colors.white,
+                ),
               ),
             ),
           ],
@@ -36,4 +45,3 @@ class HomePage extends StatelessWidget {
     );
   }
 }
-

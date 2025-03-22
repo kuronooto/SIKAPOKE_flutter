@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/gacha_view_model.dart';
+import '../../../models/pack_model.dart'; // PackModelをインポート
 import '../../shared/app_theme.dart' as theme;
 import 'pack_selection_widget.dart';
 import 'pack_opening_animation.dart';
@@ -257,6 +258,13 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
             Expanded(
               child: Consumer<GachaViewModel>(
                 builder: (context, viewModel, child) {
+                  // パックが空の場合、デフォルトパックを生成
+                  if (viewModel.packs.isEmpty) {
+                    // デバッグ表示
+                    // print('パックが空です。デフォルトパックを生成します。');
+                    viewModel.selectPack(0); // デフォルトパック（最強の資格）を生成
+                  }
+
                   return viewModel.isOpening
                       ? PackOpeningAnimation(
                         viewModel: viewModel,
