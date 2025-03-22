@@ -39,7 +39,7 @@ class _RootPageState extends State<RootPage> {
         appBarTitle = 'Home';
         break;
       case 1:
-        page = const CardPage();
+        page = CardPage(userId: FirebaseAuth.instance.currentUser?.uid?? 'guest_user');
         appBarTitle = 'Card';
         break;
       default:
