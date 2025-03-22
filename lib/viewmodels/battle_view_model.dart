@@ -14,10 +14,11 @@ class BattleViewModel {
 
     try {
       final roomsRef = _firestore.collection('rooms');
-      final waitingRoom = await roomsRef
-          .where('room_status', isEqualTo: 'waiting')
-          .limit(1)
-          .get();
+      final waitingRoom =
+          await roomsRef
+              .where('room_status', isEqualTo: 'waiting')
+              .limit(1)
+              .get();
 
       if (waitingRoom.docs.isNotEmpty) {
         // 待機中のルームが存在する場合、player2_id を設定
