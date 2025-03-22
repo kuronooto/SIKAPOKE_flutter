@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'dart:math' as math;
 import 'gacha/gacha_screen.dart';
 import '../viewmodels/gacha_view_model.dart';
 
@@ -105,7 +106,6 @@ class PackOpeningPage extends StatelessWidget {
                     context,
                     Colors.deepPurple.shade300,
                     '最強の資格',
-                    'assets/images/packs/normal_pack.png',
                     0,
                     screenWidth,
                   ),
@@ -113,7 +113,6 @@ class PackOpeningPage extends StatelessWidget {
                     context,
                     Colors.blue.shade400,
                     '資格のある島',
-                    'assets/images/packs/rare_pack.png',
                     1,
                     screenWidth,
                   ),
@@ -121,7 +120,6 @@ class PackOpeningPage extends StatelessWidget {
                     context,
                     Colors.teal.shade500,
                     '時空の資格',
-                    'assets/images/packs/super_rare_pack.png',
                     2,
                     screenWidth,
                   ),
@@ -129,7 +127,6 @@ class PackOpeningPage extends StatelessWidget {
                     context,
                     Colors.red.shade600,
                     '超克の資格',
-                    'assets/images/packs/legend_pack.png',
                     3,
                     screenWidth,
                   ),
@@ -199,7 +196,6 @@ class PackOpeningPage extends StatelessWidget {
     BuildContext context,
     Color color,
     String name,
-    String imagePath,
     int packTypeIndex,
     double screenWidth,
   ) {
@@ -250,35 +246,20 @@ class PackOpeningPage extends StatelessWidget {
                       fontSize: 9,
                     ),
                   ),
-                  Container(
-                    padding: const EdgeInsets.all(2),
-                    decoration: BoxDecoration(
-                      color: Colors.black,
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      _getRarityLabel(packTypeIndex),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 8,
-                      ),
-                    ),
-                  ),
+                  Icon(Icons.auto_awesome, color: Colors.white, size: 12),
                 ],
               ),
             ),
 
-            // 中央のアイコン
+            // 中央のアイコン - 幾何学的デザイン
             Expanded(
               child: Center(
                 child: Container(
-                  width: cardWidth * 0.5,
-                  height: cardWidth * 0.5,
+                  width: cardWidth * 0.6,
+                  height: cardWidth * 0.6,
                   decoration: BoxDecoration(
                     color: Colors.white,
-                    shape: BoxShape.circle,
-                    border: Border.all(color: Colors.black, width: 2),
+                    borderRadius: BorderRadius.circular(4),
                     boxShadow: [
                       BoxShadow(
                         color: Colors.black.withOpacity(0.2),
@@ -287,15 +268,10 @@ class PackOpeningPage extends StatelessWidget {
                       ),
                     ],
                   ),
-                  child: Center(
-                    child: Container(
-                      width: cardWidth * 0.3,
-                      height: cardWidth * 0.3,
-                      decoration: BoxDecoration(
-                        color: Colors.white,
-                        shape: BoxShape.circle,
-                        border: Border.all(color: Colors.black, width: 1.5),
-                      ),
+                  child: CustomPaint(
+                    painter: MiniGeometricPatternPainter(
+                      baseColor: color,
+                      rarityLevel: packTypeIndex + 1,
                     ),
                   ),
                 ),
@@ -333,20 +309,177 @@ class PackOpeningPage extends StatelessWidget {
       ),
     );
   }
+}
 
-  // レア度ラベルを取得
-  String _getRarityLabel(int typeIndex) {
-    switch (typeIndex) {
-      case 0:
-        return 'N';
-      case 1:
-        return 'R';
-      case 2:
-        return 'SR';
-      case 3:
-        return 'UR';
-      default:
-        return 'N';
+// ミニサイズ用の幾何学的パターンを描画するカスタムペインター
+class MiniGeometricPatternPainter extends CustomPainter {
+  final Color baseColor;
+  final int rarityLevel;
+
+  MiniGeometricPatternPainter({
+    required this.baseColor,
+    required this.rarityLevel,
+  });
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = baseColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.2;
+
+    final fillPaint =
+        Paint()
+          ..color = baseColor.withOpacity(0.2)
+          ..style = PaintingStyle.fill;
+
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+
+    // レベルに応じたパターンの複雑さ
+    final complexity = rarityLevel;
+
+    // 幾何学的なパターンを描画
+
+    // 1. 中央の形
+    switch (complexity) {
+      case 1: // シンプルな四角形
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.5,
+            height: size.height * 0.5,
+          ),
+          paint,
+        );
+        break;
+
+      case 2: // 二重の四角形
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.6,
+            height: size.height * 0.6,
+          ),
+          paint,
+        );
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.4,
+            height: size.height * 0.4,
+          ),
+          paint,
+        );
+        break;
+
+      case 3: // 三角形と四角形
+        final path = Path();
+        path.moveTo(centerX, centerY - size.height * 0.3);
+        path.lineTo(centerX + size.width * 0.3, centerY + size.height * 0.3);
+        path.lineTo(centerX - size.width * 0.3, centerY + size.height * 0.3);
+        path.close();
+        canvas.drawPath(path, paint);
+
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.3,
+            height: size.height * 0.3,
+          ),
+          paint,
+        );
+        break;
+
+      case 4: // 複雑な六角形
+        final radius = size.width * 0.35;
+        final path = Path();
+        for (int i = 0; i < 6; i++) {
+          final angle = i * math.pi / 3;
+          final x = centerX + radius * math.cos(angle);
+          final y = centerY + radius * math.sin(angle);
+
+          if (i == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        path.close();
+        canvas.drawPath(path, paint);
+
+        // 内側の三角形
+        final innerPath = Path();
+        for (int i = 0; i < 3; i++) {
+          final angle = i * 2 * math.pi / 3;
+          final x = centerX + radius * 0.5 * math.cos(angle);
+          final y = centerY + radius * 0.5 * math.sin(angle);
+
+          if (i == 0) {
+            innerPath.moveTo(x, y);
+          } else {
+            innerPath.lineTo(x, y);
+          }
+        }
+        innerPath.close();
+        canvas.drawPath(innerPath, paint);
+        break;
+
+      default: // デフォルトは単純な四角形
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.5,
+            height: size.height * 0.5,
+          ),
+          paint,
+        );
     }
+
+    // 2. 装飾パターン
+    // レア度に応じて細かい装飾を追加
+    for (int i = 0; i < complexity; i++) {
+      // 周辺の円
+      final radius = size.width * (0.15 + i * 0.05);
+      canvas.drawCircle(
+        Offset(centerX, centerY),
+        radius,
+        Paint()
+          ..color = baseColor.withOpacity(0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8,
+      );
+    }
+
+    // 3. 対角線
+    if (complexity >= 3) {
+      canvas.drawLine(
+        Offset(size.width * 0.2, size.height * 0.2),
+        Offset(size.width * 0.8, size.height * 0.8),
+        Paint()
+          ..color = baseColor.withOpacity(0.4)
+          ..strokeWidth = 0.8,
+      );
+      canvas.drawLine(
+        Offset(size.width * 0.8, size.height * 0.2),
+        Offset(size.width * 0.2, size.height * 0.8),
+        Paint()
+          ..color = baseColor.withOpacity(0.4)
+          ..strokeWidth = 0.8,
+      );
+    }
+
+    // 4. 中央の点
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      2.0,
+      Paint()
+        ..color = baseColor
+        ..style = PaintingStyle.fill,
+    );
   }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
 }
