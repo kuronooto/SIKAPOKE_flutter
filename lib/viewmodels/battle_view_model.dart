@@ -33,8 +33,17 @@ class BattleViewModel {
       } else {
         // 待機中のルームが存在しない場合、新しいルームを作成
         final newRoom = await roomsRef.add({
-          'game_state': {},
-          'logs': [],
+          'game_state': {
+            'turn': 1,
+            'player1_point': 0,
+            'player2_point': 0,
+            'player1_over_mount': 0, // 修正: 配列から整数型に変更
+            'player2_over_mount': 0, // 修正: 配列から整数型に変更
+          },
+          'logs': {
+            'player1_log': {'element': [], 'power': []},
+            'player2_log': {'element': [], 'power': []},
+          },
           'room_status': 'waiting',
           'player1_id': userId,
           'player2_id': null,
@@ -84,6 +93,7 @@ class BattleViewModel {
           'roomId': roomId,
           'player1Id': data?['player1_id'],
           'player2Id': data?['player2_id'],
+          'gameState': data?['game_state'], // game_state を取得
         };
       }
     } catch (e) {
