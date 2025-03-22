@@ -49,3 +49,4 @@ class AuthCheck extends StatelessWidget {
     return FirebaseAuth.instance.currentUser;
   }
 }
+
