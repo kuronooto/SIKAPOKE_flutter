@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sikapoke_flutter/firebase_options.dart';
 import 'pages/root_page.dart';
 import 'pages/auth_page.dart'; // 追加: LoginPage のインポート
+import 'utils/upload_cards.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
@@ -32,14 +33,15 @@ class AuthCheck extends StatelessWidget {
     return FutureBuilder<User?>(
       future: _checkLoginStatus(),
       builder: (context, snapshot) {
-        if (snapshot.connectionState == ConnectionState.waiting) {
-          return Scaffold(body: Center(child: CircularProgressIndicator()));
-        } else if (snapshot.hasData) {
-          return RootPage();
-        } else {
-          //return DataUploadPage();
-          return LoginPage();
-        }
+        return DataUploadPage();
+        // if (snapshot.connectionState == ConnectionState.waiting) {
+        //   return Scaffold(body: Center(child: CircularProgressIndicator()));
+        // } else if (snapshot.hasData) {
+        //   return RootPage();
+        // } else {
+        //   //return DataUploadPage();
+        //   return LoginPage();
+        // }
       },
     );
   }
