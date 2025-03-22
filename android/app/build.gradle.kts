@@ -11,7 +11,8 @@ plugins {
 android {
     namespace = "com.example.sikapoke_flutter"
     compileSdk = flutter.compileSdkVersion
-    ndkVersion = flutter.ndkVersion
+    ndkVersion=flutter.ndkVersion
+    //ndkVersion = "26.3.11579264" // 修正: NDK バージョンを一致させる
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_11
@@ -27,7 +28,7 @@ android {
         applicationId = "com.example.sikapoke_flutter"
         // You can update the following values to match your application needs.
         // For more information, see: https://flutter.dev/to/review-gradle-config.
-        minSdk = flutter.minSdkVersion
+        minSdk = 23 // 修正: minSdkVersion を 23 に設定
         targetSdk = flutter.targetSdkVersion
         versionCode = flutter.versionCode
         versionName = flutter.versionName
