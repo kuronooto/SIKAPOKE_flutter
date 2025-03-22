@@ -2,12 +2,19 @@ import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import '../../../models/pack_model.dart';
 
-class PackCard extends StatelessWidget {
+typedef SwipeDirectionCallback = void Function(SwipeDirection direction);
+
+// スワイプ方向を示す列挙型
+enum SwipeDirection { left, right }
+
+class PackCard extends StatefulWidget {
   final PackModel packData;
   final bool isSelected;
   final VoidCallback? onTap;
   final double scale;
   final double rotation;
+  // 新規追加: スワイプ検出時のコールバック
+  final SwipeDirectionCallback? onSwipe;
 
   const PackCard({
     Key? key,
@@ -16,18 +23,63 @@ class PackCard extends StatelessWidget {
     this.onTap,
     this.scale = 1.0,
     this.rotation = 0.0,
+    this.onSwipe,
   }) : super(key: key);
+
+  @override
+  State<PackCard> createState() => _PackCardState();
+}
+
+class _PackCardState extends State<PackCard> {
+  // スワイプ関連の変数
+  double _dragStartX = 0.0;
+  double _dragCurrentX = 0.0;
+  bool _isDragging = false;
+  static const double _swipeThreshold = 20.0; // スワイプ判定のしきい値
 
   @override
   Widget build(BuildContext context) {
     return GestureDetector(
-      onTap: onTap,
+      onTap: widget.onTap,
+      // 新規追加: 水平スワイプの検出
+      onHorizontalDragStart: (details) {
+        if (widget.onSwipe != null) {
+          setState(() {
+            _isDragging = true;
+            _dragStartX = details.globalPosition.dx;
+            _dragCurrentX = _dragStartX;
+          });
+        }
+      },
+      onHorizontalDragUpdate: (details) {
+        if (widget.onSwipe != null && _isDragging) {
+          setState(() {
+            _dragCurrentX = details.globalPosition.dx;
+          });
+        }
+      },
+      onHorizontalDragEnd: (details) {
+        if (widget.onSwipe != null && _isDragging) {
+          final dragDifference = _dragCurrentX - _dragStartX;
+          if (dragDifference.abs() > _swipeThreshold) {
+            // しきい値を超えたらスワイプとして処理
+            if (dragDifference > 0) {
+              widget.onSwipe!(SwipeDirection.right);
+            } else {
+              widget.onSwipe!(SwipeDirection.left);
+            }
+          }
+          setState(() {
+            _isDragging = false;
+          });
+        }
+      },
       child: Transform(
         transform:
             Matrix4.identity()
               ..setEntry(3, 2, 0.001) // パースペクティブ効果
               ..rotateX(0.05) // X軸で少し傾ける
-              ..scale(scale), // スケール変更（引数から）
+              ..scale(widget.scale), // スケール変更（引数から）
         // Y軸回転を削除 - 常に正面を向くように
         alignment: Alignment.center,
         child: Container(
@@ -39,9 +91,9 @@ class PackCard extends StatelessWidget {
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
               colors: [
-                packData.color.withOpacity(0.9),
-                packData.color,
-                packData.color.withOpacity(0.8),
+                widget.packData.color.withOpacity(0.9),
+                widget.packData.color,
+                widget.packData.color.withOpacity(0.8),
               ],
             ),
             borderRadius: BorderRadius.circular(15),
@@ -62,7 +114,7 @@ class PackCard extends StatelessWidget {
             ],
             // 選択時の外枠
             border:
-                isSelected
+                widget.isSelected
                     ? Border.all(color: Colors.yellow.shade300, width: 3)
                     : null,
           ),
@@ -73,9 +125,60 @@ class PackCard extends StatelessWidget {
                 // カードの内側のグラデーション（3D効果）
                 Positioned.fill(
                   child: CustomPaint(
-                    painter: CardGradientPainter(packData.color),
+                    painter: CardGradientPainter(widget.packData.color),
                   ),
                 ),
+
+                // スワイプ中の場合、スワイプ方向を示す視覚的なヒントを表示
+                if (_isDragging && (_dragCurrentX - _dragStartX).abs() > 10)
+                  Positioned.fill(
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        // 左へのスワイプヒント
+                        if (_dragCurrentX < _dragStartX)
+                          Container(
+                            width: 25,
+                            color: Colors.white.withOpacity(0.3),
+                            child: Center(
+                              child: Icon(
+                                Icons.arrow_back_ios,
+                                color: Colors.white,
+                                size:
+                                    20 *
+                                    math.min(
+                                      1.0,
+                                      (_dragStartX - _dragCurrentX) / 50,
+                                    ),
+                              ),
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 25),
+
+                        // 右へのスワイプヒント
+                        if (_dragCurrentX > _dragStartX)
+                          Container(
+                            width: 25,
+                            color: Colors.white.withOpacity(0.3),
+                            child: Center(
+                              child: Icon(
+                                Icons.arrow_forward_ios,
+                                color: Colors.white,
+                                size:
+                                    20 *
+                                    math.min(
+                                      1.0,
+                                      (_dragCurrentX - _dragStartX) / 50,
+                                    ),
+                              ),
+                            ),
+                          )
+                        else
+                          const SizedBox(width: 25),
+                      ],
+                    ),
+                  ),
 
                 // 上部のタイトルバー
                 Positioned(
@@ -127,7 +230,7 @@ class PackCard extends StatelessWidget {
                             ],
                           ),
                           child: Text(
-                            _getRarityLabel(packData.rarityLevel),
+                            _getRarityLabel(widget.packData.rarityLevel),
                             style: const TextStyle(
                               color: Colors.white,
                               fontWeight: FontWeight.bold,
@@ -189,7 +292,7 @@ class PackCard extends StatelessWidget {
                               width: 80,
                               height: 40,
                               decoration: BoxDecoration(
-                                color: packData.color.withOpacity(0.7),
+                                color: widget.packData.color.withOpacity(0.7),
                                 borderRadius: const BorderRadius.only(
                                   bottomLeft: Radius.circular(40),
                                   bottomRight: Radius.circular(40),
@@ -276,7 +379,7 @@ class PackCard extends StatelessWidget {
                     ),
                     child: Center(
                       child: Text(
-                        packData.name,
+                        widget.packData.name,
                         style: const TextStyle(
                           color: Colors.white,
                           fontWeight: FontWeight.bold,
@@ -289,7 +392,7 @@ class PackCard extends StatelessWidget {
                 ),
 
                 // 選択中のカードに光るエフェクト
-                if (isSelected) _buildGlowEffect(),
+                if (widget.isSelected) _buildGlowEffect(),
 
                 // キラキラ光のエフェクト
                 ..._buildSparkles(),
@@ -325,7 +428,7 @@ class PackCard extends StatelessWidget {
 
   // キラキラ光る小さな点を追加
   List<Widget> _buildSparkles() {
-    final random = math.Random(packData.hashCode);
+    final random = math.Random(widget.packData.hashCode);
     final sparkleCount = 3 + random.nextInt(3);
 
     return List.generate(sparkleCount, (index) {

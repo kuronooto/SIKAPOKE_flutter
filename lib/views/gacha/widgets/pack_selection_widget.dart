@@ -3,6 +3,7 @@ import 'package:flutter/material.dart';
 import '../../../view_models/gacha_view_model.dart';
 import 'gacha_utils.dart';
 import 'pack_card.dart';
+import 'pack_card.dart' show SwipeDirection; // SwipeDirection列挙型のインポート
 
 typedef SelectPackFunction = void Function(int index);
 
@@ -31,6 +32,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
   double _rotationVelocity = 0.0; // 回転速度
   bool _isDragging = false; // ドラッグ中フラグ
   bool _isAnimating = false; // アニメーション中フラグ
+  double _dragThreshold = 2.0; // 非常に小さな動きでも検出
 
   // 選択アニメーション用の変数
   int _targetPackIndex = -1; // アニメーション対象のパックインデックス
@@ -72,7 +74,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
 
     // パック選択アニメーション用コントローラ
     _selectionAnimController = AnimationController(
-      duration: const Duration(milliseconds: 800), // 滑らかな移動のための適切な時間
+      duration: const Duration(milliseconds: 400), // アニメーション時間を短縮
       vsync: this,
     );
 
@@ -183,16 +185,20 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
 
                   final dx = currentX - _lastPanX;
 
-                  final rotationDelta = dx / 100 * -0.15; // 左右の回転方向と速度調整
+                  if (dx.abs() > _dragThreshold) {
+                    // 感度を大幅増加
+                    final rotationDelta = dx / 100 * -0.45;
 
-                  setState(() {
-                    _rotationAngle += rotationDelta;
-                    _rotationVelocity = rotationDelta * 2;
-                    _lastPanX = currentX;
-                    _lastPanY = currentY;
+                    setState(() {
+                      _rotationAngle += rotationDelta;
+                      // 回転速度も大幅に増加
+                      _rotationVelocity = rotationDelta * 3.5;
+                      _lastPanX = currentX;
+                      _lastPanY = currentY;
 
-                    _updateSelectedPackFromRotation();
-                  });
+                      _updateSelectedPackFromRotation();
+                    });
+                  }
                 },
                 onPanEnd: (details) {
                   if (_isAnimating) return;
@@ -202,10 +208,11 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
 
                     final velocity = details.velocity.pixelsPerSecond;
                     final speed = velocity.distance;
-                    if (speed > 100) {
-                      final direction = velocity.dx > 0 ? -1.0 : 1.0; // 回転方向を反転
-                      _rotationVelocity =
-                          direction * min(speed / 1000, 0.2); // 速度上限を上げて回転感を強調
+                    // より小さな動きでもフリックとして検出 (閾値を30に下げる)
+                    if (speed > 30) {
+                      final direction = velocity.dx > 0 ? -1.0 : 1.0;
+                      // より強い回転を適用
+                      _rotationVelocity = direction * min(speed / 500, 0.4);
                     }
                   });
 
@@ -323,6 +330,28 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                   scale: 1.0,
                   rotation: 0.0,
                   onTap: null,
+                  // 新規追加: スワイプコールバック
+                  onSwipe:
+                      widget.viewModel.isSelecting || _isAnimating
+                          ? null
+                          : (direction) {
+                            // スワイプ方向に基づいて次/前のパックを選択
+                            final packCount = widget.viewModel.packs.length;
+                            int targetIndex;
+
+                            // スワイプ方向によって異なる処理
+                            if (direction == SwipeDirection.left) {
+                              // 左スワイプ - 次のパックへ（現在のインデックスから+1）
+                              targetIndex = (selectedIndex + 1) % packCount;
+                            } else {
+                              // 右スワイプ - 前のパックへ（現在のインデックスから-1）
+                              targetIndex =
+                                  (selectedIndex - 1 + packCount) % packCount;
+                            }
+
+                            // 選択したパックにアニメーションで移動
+                            _animateToPackIndex(targetIndex);
+                          },
                 ),
               ),
             ),
@@ -348,7 +377,9 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
       double targetAngle;
 
       // 開始時のパック位置を計算
-      int oldOffset = (index - _oldSelectedIndex) % packCount;
+      int oldOffsetInt = (index - _oldSelectedIndex) % packCount;
+      double oldOffset = oldOffsetInt.toDouble();
+
       if (oldOffset > packCount / 2) {
         oldOffset -= packCount;
       } else if (oldOffset < -packCount / 2) {
@@ -357,7 +388,9 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
       startAngle = (2 * pi * oldOffset / packCount) + _rotationAngle;
 
       // 目標位置のパック位置を計算
-      int newOffset = (index - _targetPackIndex) % packCount;
+      int newOffsetInt = (index - _targetPackIndex) % packCount;
+      double newOffset = newOffsetInt.toDouble();
+
       if (newOffset > packCount / 2) {
         newOffset -= packCount;
       } else if (newOffset < -packCount / 2) {
@@ -395,32 +428,43 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     int closestIndex = widget.viewModel.selectedPackIndex;
 
     for (int i = 0; i < packCount; i++) {
-      // 各パックの角度を計算（選択中パックを基準として）
-      final indexDiff = (i - widget.viewModel.selectedPackIndex) % packCount;
-      final packAngle = 2 * pi * indexDiff / packCount;
+      // 各パックの角度を計算（現在の回転角度を考慮）
+      final int indexDiffInt =
+          (i - widget.viewModel.selectedPackIndex) % packCount;
 
-      // 現在の回転角度を考慮した角度差（正面=0との差）
-      double angleDiff = (packAngle + _rotationAngle).abs() % (2 * pi);
+      // 明示的に double に変換
+      double normalizedDiff = indexDiffInt.toDouble();
+      if (normalizedDiff > packCount / 2) {
+        normalizedDiff -= packCount;
+      } else if (normalizedDiff < -packCount / 2) {
+        normalizedDiff += packCount;
+      }
+
+      final packAngle = 2 * pi * normalizedDiff / packCount;
+
+      // 現在の回転角度を考慮した角度差
+      double angleDiff = (packAngle + _rotationAngle).abs();
       if (angleDiff > pi) angleDiff = 2 * pi - angleDiff;
 
-      // 最も小さい角度差を持つパックを選択
       if (angleDiff < minAngleDiff) {
         minAngleDiff = angleDiff;
         closestIndex = i;
       }
     }
 
-    // 選択パックが変わったときだけ更新
-    if (closestIndex != widget.viewModel.selectedPackIndex) {
+    // 非常に小さな閾値で更新を行う
+    // または、異なるパックが検出された場合は必ず更新
+    if (closestIndex != widget.viewModel.selectedPackIndex ||
+        (_rotationAngle.abs() > 0.05 && minAngleDiff < 0.3)) {
       _prepareAnimation(
         widget.viewModel.selectedPackIndex,
         closestIndex,
         packCount,
       );
+
       widget.onPackSelected(closestIndex);
       widget.playSelectSound();
 
-      // アニメーションでパックを移動
       _startSelectionAnimation();
     }
   }
@@ -451,7 +495,11 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     _targetPackIndex = newIndex;
 
     // 現在のターゲットパックの角度を取得
-    int oldOffset = (newIndex - oldIndex) % packCount;
+    int oldOffsetInt = (newIndex - oldIndex) % packCount;
+
+    // 明示的に double に変換
+    double oldOffset = oldOffsetInt.toDouble();
+
     // 最短経路を計算
     if (oldOffset > packCount / 2) {
       oldOffset -= packCount;
@@ -490,8 +538,8 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
         _isAnimating)
       return;
 
-    // 回転角度が微小の場合は何もしない
-    if (_rotationAngle.abs() < 0.05) return;
+    // より小さな角度でもスナップするよう閾値を下げる
+    if (_rotationAngle.abs() < 0.02) return;
 
     final packCount = widget.viewModel.packs.length;
     _prepareAnimation(
