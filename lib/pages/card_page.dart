@@ -51,7 +51,7 @@ class CardPage extends StatelessWidget {
 
       return cardDetails;
     } catch (e) {
-      print("エラー: $e");
+      // print("エラー: $e");
       return [];
     }
   }

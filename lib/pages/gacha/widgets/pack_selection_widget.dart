@@ -1,6 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../../../viewmodels/gacha_view_model.dart';
+import '../../../models/pack_model.dart'; // PackModelをインポート
 import 'gacha_utils.dart';
 import 'pack_card.dart';
 import 'pack_card.dart' show SwipeDirection; // SwipeDirection列挙型のインポート
@@ -112,8 +113,31 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
   Widget build(BuildContext context) {
     // パックを3D空間の円周上に配置し、横方向に回転するように表示
 
-    final int packCount = widget.viewModel.packs.length;
-    if (packCount == 0) return const SizedBox.shrink(); // パックがない場合は何も表示しない
+    final List<dynamic> packs = widget.viewModel.packs;
+    final int packCount = packs.length;
+
+    if (packCount == 0) {
+      // デバッグ表示
+      // print('PackSelectionWidget: パックが空です');
+      return Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Text(
+              'パックが見つかりません',
+              style: TextStyle(fontSize: 18, color: Colors.grey),
+            ),
+            SizedBox(height: 20),
+            ElevatedButton(
+              onPressed: () {
+                widget.viewModel.selectPack(0); // デフォルトパック（最強の資格）を生成
+              },
+              child: Text('パックを初期化'),
+            ),
+          ],
+        ),
+      );
+    }
 
     // 選択インデックスが無効な場合は0に設定
     if (widget.viewModel.selectedPackIndex < 0 ||
@@ -243,6 +267,21 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     double radius,
     double centerY,
   ) {
+    // パックが存在しない場合は空のリストを返す
+    if (packCount == 0) {
+      // デバッグログを追加
+      // print('PackSelectionWidget: パックが空です');
+      return [];
+    }
+
+    // デバッグログ - パックの情報を表示
+    // print('PackSelectionWidget: ${packCount}枚のパックを表示します');
+    for (int i = 0; i < min(3, packCount); i++) {
+      // print(
+      //   'Pack[$i]: ${widget.viewModel.packs[i].name}, 色: ${widget.viewModel.packs[i].color}',
+      // );
+    }
+
     // 選択されたパックを基準に角度を計算
     final selectedIndex = widget.viewModel.selectedPackIndex;
 
@@ -278,6 +317,9 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     for (final entry in packZOrder) {
       final index = entry.key;
       final z = entry.value;
+
+      // 選択されたパックタイプからパックモデルを取得
+      final PackModel packData = widget.viewModel.packs[index];
 
       // 角度を決定
       double angle;
@@ -325,7 +367,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                         ? null
                         : () => _animateToPackIndex(index),
                 child: PackCard(
-                  packData: widget.viewModel.packs[index],
+                  packData: packData,
                   isSelected: isSelected,
                   scale: 1.0,
                   rotation: 0.0,

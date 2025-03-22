@@ -211,7 +211,7 @@ class ResultDialog extends StatelessWidget {
                   borderRadius: BorderRadius.circular(30),
                 ),
               ),
-              child: const Text('カードを保存', style: TextStyle(fontSize: 16)),
+              child: const Text('閉じる', style: TextStyle(fontSize: 16)),
             ),
           ],
         ),
