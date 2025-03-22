@@ -4,6 +4,7 @@ import 'package:flutter/material.dart';
 import 'package:sikapoke_flutter/firebase_options.dart';
 import 'pages/root_page.dart';
 import 'pages/auth_page.dart'; // 追加: LoginPage のインポート
+import 'utils/upload_cards.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
