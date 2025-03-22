@@ -39,9 +39,6 @@ class CardGachaService {
       DocumentSnapshot cardDoc = cardSnapshot.docs[randomIndex];
       Map<String, dynamic> cardData = cardDoc.data() as Map<String, dynamic>;
 
-      // ユーザーがログインしている場合、カードを所有カードリストに追加
-      await _addCardToUserCollection(cardDoc.id);
-
       // カード結果を生成
       CardResult result = CardResult(
         id: cardDoc.id,
@@ -51,6 +48,9 @@ class CardGachaService {
         rarityLevel: _getRarityLevel(cardRank),
         description: _generateCardDescription(cardData),
       );
+
+      // ユーザーがログインしている場合、カードを所有カードリストに追加
+      await _addCardToUserCollection(cardData['id']?.toString() ?? '0');
 
       return result;
     } catch (e) {
@@ -65,7 +65,10 @@ class CardGachaService {
       final userId = _auth.currentUser?.uid;
       if (userId == null) return;
 
+      print('カードIDを保存: $cardId'); // デバッグログ追加
+
       // ユーザーの所有カードリファレンス
+      // cardIdを直接ドキュメントIDとして使う
       final userCardRef = _firestore
           .collection('users')
           .doc(userId)
@@ -79,12 +82,14 @@ class CardGachaService {
         // 既に所持している場合は枚数を増やす
         int currentNumber = (cardDoc.data()?['number'] as num?)?.toInt() ?? 0;
         await userCardRef.update({'number': currentNumber + 1});
+        print('既存カード更新: ID=$cardId, 新しい所持枚数=${currentNumber + 1}'); // デバッグログ追加
       } else {
         // 新規カードの場合
         await userCardRef.set({
-          'id': int.parse(cardId), // idを数値として保存
+          'id': int.tryParse(cardId) ?? 0, // 安全に数値変換（失敗したら0）
           'number': 1,
         });
+        print('新規カード追加: ID=$cardId, 所持枚数=1'); // デバッグログ追加
       }
     } catch (e) {
       print('カード追加エラー: $e');
