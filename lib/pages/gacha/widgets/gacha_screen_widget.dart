@@ -153,7 +153,7 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
     final viewModel = Provider.of<GachaViewModel>(context, listen: false);
 
     // ViewModel内の状態をリセット
-    viewModel.resetSelection();
+    viewModel.completeReset(); // 完全リセットを使用
 
     // アニメーションコントローラをリセット
     _selectionController.reset();

@@ -88,7 +88,16 @@ class ResultDialog extends StatelessWidget {
       ),
       actions: [
         TextButton(
-          onPressed: onClose,
+          onPressed: () {
+            // 現在のダイアログを閉じる
+            Navigator.of(context).pop();
+
+            // onClose コールバックを実行
+            onClose();
+
+            // GachaScreen を閉じて元のページ（PackOpeningPage）に戻る
+            Navigator.of(context).pop();
+          },
           child: const Text(
             'OK',
             style: TextStyle(fontSize: 18, color: Colors.deepPurple),
