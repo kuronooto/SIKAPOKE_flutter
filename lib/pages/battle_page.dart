@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import '../viewmodels/battle_view_model.dart';
+import 'room_page.dart'; // RoomPage をインポート
 
 class BattlePage extends StatefulWidget {
   const BattlePage({super.key});
@@ -94,10 +95,10 @@ class _BattlePageState extends State<BattlePage> {
     while (true) {
       final isMatched = await _viewModel.checkIfMatched(_currentRoomId!);
       if (isMatched) {
+        // ダイアログの状態を更新
         setState(() {
           _isMatched = true; // マッチング成功状態を更新
         });
-        await Future.delayed(const Duration(seconds: 2)); // 2秒間成功状態を表示
         break;
       }
       await Future.delayed(const Duration(seconds: 1)); // 1秒待機
@@ -110,6 +111,21 @@ class _BattlePageState extends State<BattlePage> {
 
     if (Navigator.canPop(context)) {
       Navigator.pop(context); // ダイアログを閉じる
+    }
+
+    // RoomPage に遷移
+    final roomData = await _viewModel.getRoomData(_currentRoomId!);
+    if (roomData != null) {
+      Navigator.of(context).push(
+        MaterialPageRoute(
+          builder:
+              (context) => RoomPage(
+                roomId: roomData['roomId'],
+                player1Id: roomData['player1Id'],
+                player2Id: roomData['player2Id'],
+              ),
+        ),
+      );
     }
   }
 

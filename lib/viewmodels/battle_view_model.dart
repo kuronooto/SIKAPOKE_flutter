@@ -73,4 +73,22 @@ class BattleViewModel {
       return false;
     }
   }
+
+  Future<Map<String, dynamic>?> getRoomData(String roomId) async {
+    try {
+      final roomSnapshot =
+          await _firestore.collection('rooms').doc(roomId).get();
+      if (roomSnapshot.exists) {
+        final data = roomSnapshot.data();
+        return {
+          'roomId': roomId,
+          'player1Id': data?['player1_id'],
+          'player2Id': data?['player2_id'],
+        };
+      }
+    } catch (e) {
+      log('ルームデータ取得エラー: $e');
+    }
+    return null;
+  }
 }
