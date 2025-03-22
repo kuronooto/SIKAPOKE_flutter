@@ -218,8 +218,8 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                     transform:
                         Matrix4.identity()
                           ..setEntry(3, 2, 0.001) // パースペクティブ
-                          ..scale(scale) // Z軸に応じたスケール
-                          ..rotateY(angle * 0.2), // パックも少し回転させる（横から見えるように）
+                          ..scale(scale), // Z軸に応じたスケール
+                    // パックの回転を削除して常に正面を向くように修正
                     alignment: Alignment.center,
                     child: Opacity(
                       opacity: opacity,
@@ -233,14 +233,14 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                                     : () => _animateToPackIndex(index),
                             child: PackCard(
                               packData: widget.viewModel.packs[index],
-                              isSelected: isSelected && isInFront,
+                              isSelected: isSelected, // 正面判定を削除
                               scale: 1.0,
                               rotation: 0.0,
                               onTap: null,
                             ),
                           ),
 
-                          // 選択中かつ正面にあるパックに「選択中」バッジを表示
+                          // 選択中のパックにバッジを表示（正面判定を削除）
                           if (isSelected)
                             Positioned(
                               bottom: -25,
