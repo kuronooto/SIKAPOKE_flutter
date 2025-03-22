@@ -308,11 +308,29 @@ class _RoomPageState extends State<RoomPage> {
     final roomRef = FirebaseFirestore.instance
         .collection('rooms')
         .doc(widget.roomId);
-    await roomRef.update({
-      'game_state.player1_card':
-          widget.player1Id == widget.player1Id ? cardId : null,
-      'game_state.player2_card':
-          widget.player1Id == widget.player2Id ? cardId : null,
-    });
+    final currentUserId = FirebaseAuth.instance.currentUser?.uid;
+
+    // カード情報を取得
+    final cardData = await _fetchCardData(cardId);
+
+    if (cardData.isNotEmpty) {
+      final cardPower = cardData['power'] as int? ?? 0;
+      final cardType = cardData['type'] as String? ?? '';
+
+      // 自分のカード情報を logs に反映
+      if (currentUserId == widget.player1Id) {
+        await roomRef.update({
+          'game_state.player1_card': cardId,
+          'logs.player1_log.power': FieldValue.arrayUnion([cardPower]),
+          'logs.player1_log.type': FieldValue.arrayUnion([cardType]),
+        });
+      } else if (currentUserId == widget.player2Id) {
+        await roomRef.update({
+          'game_state.player2_card': cardId,
+          'logs.player2_log.power': FieldValue.arrayUnion([cardPower]),
+          'logs.player2_log.type': FieldValue.arrayUnion([cardType]),
+        });
+      }
+    }
   }
 }
