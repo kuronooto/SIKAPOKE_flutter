@@ -94,6 +94,7 @@ class GachaViewModel extends ChangeNotifier {
     if (_isOpening || _selectedPackIndex == -1) return;
 
     _isOpening = true;
+    _result = null; // 前回の結果をクリア
     notifyListeners();
 
     // 実際のアプリではここで API 呼び出しなどを行い結果を取得
@@ -101,10 +102,19 @@ class GachaViewModel extends ChangeNotifier {
   }
 
   void resetSelection() {
-    _selectedPackIndex = -1;
     _isSelecting = false;
     _isOpening = false;
     _result = null;
+    // _selectedPackIndex = -1;  // これは削除：これを-1にするとパックなしの状態になる
+    notifyListeners();
+  }
+
+  // 完全にリセットする
+  void completeReset() {
+    _isSelecting = false;
+    _isOpening = false;
+    _result = null;
+    _selectedPackIndex = 0; // デフォルトのパックを選択
     notifyListeners();
   }
 
@@ -114,7 +124,7 @@ class GachaViewModel extends ChangeNotifier {
   }
 
   void completeOpening() {
-    _isOpening = false;
+    // _isOpening = false; // この行はコメントアウト：結果表示後もisOpening状態を保持
     notifyListeners();
   }
 

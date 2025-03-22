@@ -34,8 +34,8 @@ class PackOpeningAnimation extends StatelessWidget {
       builder: (context, child) {
         final value = animation.value;
 
-        // スワイプでパックを開封するインタラクティブな演出
-        if (value < 0.3) {
+        // アニメーションの進行が0の場合は常にスワイプ待ちの初期状態を表示
+        if (value == 0.0 || value < 0.3) {
           return _buildInitialPackState(selectedPack, glowColor);
         }
         // パックが開いて中身が見える演出
@@ -146,6 +146,10 @@ class PackOpeningAnimation extends StatelessWidget {
     PackModel selectedPack,
   ) {
     final openingProgress = (value - 0.3) / 0.3; // 0.3~0.6を0~1にマッピング
+    final clampedOpeningProgress = max(
+      0.0,
+      min(1.0, openingProgress),
+    ); // 安全な範囲に制限
 
     return Container(
       decoration: BoxDecoration(
@@ -161,8 +165,8 @@ class PackOpeningAnimation extends StatelessWidget {
           children: [
             // 光るエフェクト（レア度が高いほど強い）
             Container(
-              width: 250 + openingProgress * 100,
-              height: 330 + openingProgress * 100,
+              width: 250 + clampedOpeningProgress * 100,
+              height: 330 + clampedOpeningProgress * 100,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
@@ -181,7 +185,7 @@ class PackOpeningAnimation extends StatelessWidget {
               transform:
                   Matrix4.identity()
                     ..setEntry(3, 2, 0.001)
-                    ..rotateY(pi * openingProgress),
+                    ..rotateY(pi * clampedOpeningProgress),
               child: Container(
                 width: 220,
                 height: 300,
@@ -200,7 +204,9 @@ class PackOpeningAnimation extends StatelessWidget {
                   child: Icon(
                     Icons.catching_pokemon,
                     size: 120,
-                    color: Colors.white.withOpacity(1.0 - openingProgress),
+                    color: Colors.white.withOpacity(
+                      max(0.0, min(1.0, 1.0 - clampedOpeningProgress)),
+                    ),
                   ),
                 ),
               ),
@@ -219,6 +225,10 @@ class PackOpeningAnimation extends StatelessWidget {
     int rarityLevel,
   ) {
     final cardRevealProgress = (value - 0.6) / 0.4; // 0.6~1.0を0~1にマッピング
+    final clampedCardRevealProgress = max(
+      0.0,
+      min(1.0, cardRevealProgress),
+    ); // 安全な範囲に制限
 
     return Container(
       decoration: BoxDecoration(
@@ -234,13 +244,18 @@ class PackOpeningAnimation extends StatelessWidget {
           children: [
             // 光のエフェクト（拡大して消える）
             Container(
-              width: 300 + cardRevealProgress * 200,
-              height: 400 + cardRevealProgress * 200,
+              width: 300 + clampedCardRevealProgress * 200,
+              height: 400 + clampedCardRevealProgress * 200,
               decoration: BoxDecoration(
                 shape: BoxShape.circle,
                 gradient: RadialGradient(
                   colors: [
-                    glowColor.withOpacity(0.7 * (1.0 - cardRevealProgress)),
+                    glowColor.withOpacity(
+                      max(
+                        0.0,
+                        min(1.0, 0.7 * (1.0 - clampedCardRevealProgress)),
+                      ),
+                    ),
                     Colors.transparent,
                   ],
                   radius: 0.5,
@@ -252,12 +267,15 @@ class PackOpeningAnimation extends StatelessWidget {
             if (rarityLevel >= 3)
               ...List.generate(20, (index) {
                 final angle = index * pi / 10;
-                final distance = 150 + cardRevealProgress * 100;
+                final distance = 150 + clampedCardRevealProgress * 100;
                 return Positioned(
-                  left: 150 + cos(angle) * distance * cardRevealProgress,
-                  top: 150 + sin(angle) * distance * cardRevealProgress,
+                  left: 150 + cos(angle) * distance * clampedCardRevealProgress,
+                  top: 150 + sin(angle) * distance * clampedCardRevealProgress,
                   child: Opacity(
-                    opacity: 1.0 - cardRevealProgress * 0.8,
+                    opacity: max(
+                      0.0,
+                      min(1.0, 1.0 - clampedCardRevealProgress * 0.8),
+                    ),
                     child: Container(
                       width: 10,
                       height: 10,
@@ -276,7 +294,7 @@ class PackOpeningAnimation extends StatelessWidget {
               transform:
                   Matrix4.identity()
                     ..setEntry(3, 2, 0.001)
-                    ..rotateY(pi * (1.0 - cardRevealProgress)),
+                    ..rotateY(pi * (1.0 - clampedCardRevealProgress)),
               child: Container(
                 width: 220,
                 height: 300,

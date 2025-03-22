@@ -26,6 +26,9 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
   // 効果音サービス
   final SoundService _soundService = SoundService();
 
+  // パック開封フラグ
+  bool _waitingForSwipe = false;
+
   @override
   void initState() {
     super.initState();
@@ -113,7 +116,9 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
                     result: viewModel.result!,
                     onClose: () {
                       Navigator.of(context).pop();
-                      viewModel.resetSelection();
+
+                      // 全ステートを完全にリセット
+                      _resetAllStates();
                     },
                   ),
             );
@@ -142,6 +147,31 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
     });
   }
 
+  // 全ての状態を完全にリセット
+  void _resetAllStates() {
+    final viewModel = Provider.of<GachaViewModel>(context, listen: false);
+
+    // ViewModel内の状態をリセット
+    viewModel.resetSelection();
+
+    // アニメーションコントローラをリセット
+    _selectionController.reset();
+    _openingController.reset();
+
+    // 開封待ちフラグをリセット
+    setState(() {
+      _waitingForSwipe = false;
+    });
+
+    // イベントリスナーがアクティブな場合はキャンセル
+    if (_openingController.isAnimating) {
+      _openingController.stop();
+    }
+    if (_selectionController.isAnimating) {
+      _selectionController.stop();
+    }
+  }
+
   @override
   void dispose() {
     _selectionController.dispose();
@@ -159,11 +189,19 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
   }
 
   void _openSelectedPack() {
+    // 前回のアニメーション状態をクリア
+    _openingController.reset();
+
+    // パック開封前の状態フラグを設定
+    setState(() {
+      _waitingForSwipe = true;
+    });
+
     final viewModel = Provider.of<GachaViewModel>(context, listen: false);
     viewModel.openSelectedPack();
-    _openingController.reset();
-    _openingController.forward();
-    _soundService.playPackOpenSound(); // 開封効果音
+
+    // 注：実際の開封アニメーションはスワイプやタップ時にのみ開始される
+    // _openingController はスワイプやタップ時に進行する
   }
 
   void _onPackSelected(int index) {
@@ -171,16 +209,30 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
   }
 
   void _onPackSwiped() {
-    _openingController.animateTo(
-      0.3,
-      duration: const Duration(milliseconds: 200),
-    );
+    // スワイプされた場合にのみアニメーションを開始
+    if (_waitingForSwipe) {
+      _openingController.reset();
+      _openingController.forward();
+      _soundService.playPackOpenSound(); // 開封効果音
+    }
   }
 
   @override
   Widget build(BuildContext context) {
     return Container(
-      decoration: BoxDecoration(gradient: theme.AppTheme.backgroundGradient),
+      // グラデーションを使用するが、薄い色にする
+      decoration: BoxDecoration(
+        color: Colors.white, // 白ベースの背景
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: [
+            Colors.blue.shade50, // 非常に薄い青
+            Colors.purple.shade50, // 非常に薄い紫
+          ],
+          stops: const [0.0, 1.0],
+        ),
+      ),
       child: SafeArea(
         child: Column(
           children: [
