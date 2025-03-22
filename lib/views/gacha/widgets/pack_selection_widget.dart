@@ -30,9 +30,20 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
   double _lastPanY = 0.0; // 前回のタッチ位置Y
   double _rotationVelocity = 0.0; // 回転速度
   bool _isDragging = false; // ドラッグ中フラグ
+  bool _isAnimating = false; // アニメーション中フラグ
+
+  // 選択アニメーション用の変数
+  int _targetPackIndex = -1; // アニメーション対象のパックインデックス
+  int _oldSelectedIndex = -1; // 以前選択されていたパックインデックス
+  double _animationProgress = 0.0; // アニメーションの進行状況（0.0-1.0）
+  bool _clockwiseRotation = true; // 回転方向（時計回りか反時計回りか）
+  double _startAngle = 0.0; // アニメーション開始時の角度
+  double _targetAngle = 0.0; // アニメーション終了時の角度
+  double _angleDelta = 0.0; // アニメーションで回転する角度
 
   // アニメーション用コントローラ
   late AnimationController _rotationController;
+  late AnimationController _selectionAnimController;
 
   @override
   void initState() {
@@ -43,7 +54,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
       duration: const Duration(seconds: 10), // 長めの持続時間
       vsync: this,
     )..addListener(() {
-      if (_rotationVelocity != 0 && !_isDragging) {
+      if (_rotationVelocity != 0 && !_isDragging && !_isAnimating) {
         setState(() {
           // 慣性による回転
           _rotationAngle += _rotationVelocity;
@@ -58,12 +69,40 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
         });
       }
     });
+
+    // パック選択アニメーション用コントローラ
+    _selectionAnimController = AnimationController(
+      duration: const Duration(milliseconds: 800), // 滑らかな移動のための適切な時間
+      vsync: this,
+    );
+
+    // アニメーションの進行状況を監視
+    _selectionAnimController.addListener(() {
+      setState(() {
+        _animationProgress = _selectionAnimController.value;
+      });
+    });
+
+    // アニメーション完了時の処理
+    _selectionAnimController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() {
+          _isAnimating = false;
+          _rotationAngle = 0.0; // 確実に0に設定
+          _oldSelectedIndex = widget.viewModel.selectedPackIndex;
+          _targetPackIndex = -1;
+        });
+      }
+    });
+
     _rotationController.repeat(); // 常に更新
+    _oldSelectedIndex = widget.viewModel.selectedPackIndex;
   }
 
   @override
   void dispose() {
     _rotationController.dispose();
+    _selectionAnimController.dispose();
     super.dispose();
   }
 
@@ -79,6 +118,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
         widget.viewModel.selectedPackIndex >= packCount) {
       // 範囲外の場合は最初のパックを選択
       widget.viewModel.selectPack(0);
+      _oldSelectedIndex = 0;
     }
 
     final double radius = MediaQuery.of(context).size.width * 0.4; // 円の半径
@@ -122,6 +162,8 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
               // 横回転を検出する透明なコントロール
               GestureDetector(
                 onPanStart: (details) {
+                  if (_isAnimating) return; // アニメーション中はドラッグを無視
+
                   setState(() {
                     _isDragging = true;
                     _lastPanX = details.globalPosition.dx;
@@ -134,7 +176,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                   }
                 },
                 onPanUpdate: (details) {
-                  if (widget.viewModel.isSelecting) return;
+                  if (widget.viewModel.isSelecting || _isAnimating) return;
 
                   final currentX = details.globalPosition.dx;
                   final currentY = details.globalPosition.dy;
@@ -153,6 +195,8 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                   });
                 },
                 onPanEnd: (details) {
+                  if (_isAnimating) return;
+
                   setState(() {
                     _isDragging = false;
 
@@ -199,9 +243,17 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     final List<MapEntry<int, double>> packZOrder = [];
 
     for (int i = 0; i < packCount; i++) {
-      // 各パックの角度を計算（選択中パックを基準として）
-      final indexOffset = (i - selectedIndex) % packCount;
-      final angle = (2 * pi * indexOffset / packCount) + _rotationAngle;
+      // 各パックの角度を計算
+      double angle;
+
+      if (_isAnimating && _targetPackIndex != -1) {
+        // アニメーション中：アニメーションの進行状況に応じて角度を計算
+        angle = _calculateAnimationAngle(i, packCount);
+      } else {
+        // 通常時：選択中パックを基準に角度を計算
+        final indexOffset = (i - selectedIndex) % packCount;
+        angle = (2 * pi * indexOffset / packCount) + _rotationAngle;
+      }
 
       // Z座標を計算（cos関数で前後位置を決定）
       final z = cos(angle) * radius;
@@ -215,17 +267,22 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     // ソートされた順序でパックウィジェットを作成
     final List<Widget> packWidgets = [];
 
-    // 選択中のハイライト効果もここでは削除（黄色い背景の原因になるため）
-
     // 全てのパックカードを描画
     for (final entry in packZOrder) {
       final index = entry.key;
       final z = entry.value;
 
-      // 選択インデックスとの差を計算（円周上の位置）
-      final indexOffset = (index - selectedIndex) % packCount;
-      // 角度を計算
-      final angle = (2 * pi * indexOffset / packCount) + _rotationAngle;
+      // 角度を決定
+      double angle;
+
+      if (_isAnimating && _targetPackIndex != -1) {
+        // アニメーション中
+        angle = _calculateAnimationAngle(index, packCount);
+      } else {
+        // 通常時
+        final indexOffset = (index - selectedIndex) % packCount;
+        angle = (2 * pi * indexOffset / packCount) + _rotationAngle;
+      }
 
       // X座標（sin関数で左右位置を決定）
       final x = sin(angle) * radius;
@@ -240,7 +297,8 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
       final opacity = GachaUtils.map(z, -radius, radius, 0.5, 1.0);
 
       // 選択中かどうか
-      final isSelected = index == selectedIndex;
+      final isSelected =
+          _isAnimating ? (index == _targetPackIndex) : (index == selectedIndex);
 
       packWidgets.add(
         Positioned(
@@ -256,7 +314,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
               opacity: opacity,
               child: GestureDetector(
                 onTap:
-                    widget.viewModel.isSelecting
+                    widget.viewModel.isSelecting || _isAnimating
                         ? null
                         : () => _animateToPackIndex(index),
                 child: PackCard(
@@ -274,6 +332,52 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     }
 
     return packWidgets;
+  }
+
+  // アニメーション中の角度を計算するヘルパーメソッド
+  double _calculateAnimationAngle(int index, int packCount) {
+    if (index == _targetPackIndex) {
+      // ターゲットパック：徐々に前面（0度）に移動
+      return _startAngle * (1.0 - _animationProgress);
+    } else {
+      // 各パックの現在の位置を計算
+      double currentAngle;
+
+      // 開始位置と終了位置の角度を計算
+      double startAngle;
+      double targetAngle;
+
+      // 開始時のパック位置を計算
+      int oldOffset = (index - _oldSelectedIndex) % packCount;
+      if (oldOffset > packCount / 2) {
+        oldOffset -= packCount;
+      } else if (oldOffset < -packCount / 2) {
+        oldOffset += packCount;
+      }
+      startAngle = (2 * pi * oldOffset / packCount) + _rotationAngle;
+
+      // 目標位置のパック位置を計算
+      int newOffset = (index - _targetPackIndex) % packCount;
+      if (newOffset > packCount / 2) {
+        newOffset -= packCount;
+      } else if (newOffset < -packCount / 2) {
+        newOffset += packCount;
+      }
+      targetAngle = (2 * pi * newOffset / packCount);
+
+      // 最短経路をとる角度補間
+      double diff = targetAngle - startAngle;
+
+      // 角度の差が±πを超える場合、反対方向に回る
+      if (diff > pi) {
+        diff -= 2 * pi;
+      } else if (diff < -pi) {
+        diff += 2 * pi;
+      }
+
+      currentAngle = startAngle + diff * _animationProgress;
+      return currentAngle;
+    }
   }
 
   bool _isSelectedPackInFront() {
@@ -308,35 +412,93 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
 
     // 選択パックが変わったときだけ更新
     if (closestIndex != widget.viewModel.selectedPackIndex) {
+      _prepareAnimation(
+        widget.viewModel.selectedPackIndex,
+        closestIndex,
+        packCount,
+      );
       widget.onPackSelected(closestIndex);
       widget.playSelectSound();
 
-      // パックが変わったら回転角度をリセット
-      _rotationAngle = 0.0;
+      // アニメーションでパックを移動
+      _startSelectionAnimation();
     }
   }
 
   // 指定したパックインデックスに滑らかにアニメーション
   void _animateToPackIndex(int targetIndex) {
-    if (targetIndex == widget.viewModel.selectedPackIndex) return;
+    if (targetIndex == widget.viewModel.selectedPackIndex || _isAnimating)
+      return;
 
-    // 選択パックを先に更新
+    final packCount = widget.viewModel.packs.length;
+    _prepareAnimation(
+      widget.viewModel.selectedPackIndex,
+      targetIndex,
+      packCount,
+    );
+
+    // 選択パックを更新
     widget.onPackSelected(targetIndex);
     widget.playSelectSound();
 
-    // 選択が変わったら回転角度をリセット
-    setState(() {
-      _rotationAngle = 0.0;
-    });
+    // アニメーションを開始
+    _startSelectionAnimation();
   }
 
-  // スワイプ終了時、選択中のパックが正面に来るように調整
-  void _snapToSelectedPack() {
-    if (widget.viewModel.isSelecting || widget.viewModel.packs.isEmpty) return;
+  // アニメーションの準備：最短経路の計算など
+  void _prepareAnimation(int oldIndex, int newIndex, int packCount) {
+    _oldSelectedIndex = oldIndex;
+    _targetPackIndex = newIndex;
 
-    // 選択されたパックが正面にくるように回転角度をリセット
+    // 現在のターゲットパックの角度を取得
+    int oldOffset = (newIndex - oldIndex) % packCount;
+    // 最短経路を計算
+    if (oldOffset > packCount / 2) {
+      oldOffset -= packCount;
+      _clockwiseRotation = false;
+    } else if (oldOffset < -packCount / 2) {
+      oldOffset += packCount;
+      _clockwiseRotation = true;
+    } else {
+      // 通常の経路
+      _clockwiseRotation = oldOffset > 0;
+    }
+
+    // ターゲットパックの現在の角度
+    _startAngle = (2 * pi * oldOffset / packCount) + _rotationAngle;
+    // 目標角度は0（正面）
+    _targetAngle = 0.0;
+    // 回転する角度
+    _angleDelta = _targetAngle - _startAngle;
+  }
+
+  // 選択アニメーションを開始
+  void _startSelectionAnimation() {
     setState(() {
-      _rotationAngle = 0.0;
+      _isAnimating = true;
+      _animationProgress = 0.0;
     });
+
+    _selectionAnimController.reset();
+    _selectionAnimController.forward();
+  }
+
+  // スワイプ終了時、選択中のパックが正面に来るようにアニメーションで調整
+  void _snapToSelectedPack() {
+    if (widget.viewModel.isSelecting ||
+        widget.viewModel.packs.isEmpty ||
+        _isAnimating)
+      return;
+
+    // 回転角度が微小の場合は何もしない
+    if (_rotationAngle.abs() < 0.05) return;
+
+    final packCount = widget.viewModel.packs.length;
+    _prepareAnimation(
+      widget.viewModel.selectedPackIndex,
+      widget.viewModel.selectedPackIndex,
+      packCount,
+    );
+    _startSelectionAnimation();
   }
 }
