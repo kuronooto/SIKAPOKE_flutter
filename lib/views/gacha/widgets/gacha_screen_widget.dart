@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../view_models/gacha_view_model.dart';
 import '../../shared/app_theme.dart' as theme;
@@ -211,9 +212,24 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
   void _onPackSwiped() {
     // スワイプされた場合にのみアニメーションを開始
     if (_waitingForSwipe) {
+      // スライス効果の触覚フィードバック（振動）を追加
+      HapticFeedback.mediumImpact();
+
+      // アニメーションコントローラーをリセット
       _openingController.reset();
-      _openingController.forward();
-      _soundService.playPackOpenSound(); // 開封効果音
+
+      // スライス効果用の特殊なカーブを使用
+      final customCurve = CurvedAnimation(
+        parent: _openingController,
+        // 最初に急速に加速し、その後徐々に減速するカスタムカーブ
+        curve: Curves.easeOutBack,
+      );
+
+      // アニメーションを開始
+      _openingController.forward(from: 0.0);
+
+      // 効果音を再生
+      _soundService.playPackOpenSound(); // 基本の開封効果音
     }
   }
 
