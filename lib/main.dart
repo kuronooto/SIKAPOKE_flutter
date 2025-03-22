@@ -39,7 +39,6 @@ class AuthCheck extends StatelessWidget {
         } else if (snapshot.hasData) {
           return RootPage();
         } else {
-          
           return LoginPage();
         }
       },

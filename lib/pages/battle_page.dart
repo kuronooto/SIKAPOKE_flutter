@@ -123,7 +123,7 @@ class _BattlePageState extends State<BattlePage> {
                 roomId: roomData['roomId'],
                 player1Id: roomData['player1Id'],
                 player2Id: roomData['player2Id'],
-                gameState: roomData['gameState'], // game_state を渡す
+                gameState: roomData['gameState'], // Pass gameState to RoomPage
               ),
         ),
       );
