@@ -60,323 +60,297 @@ class PackCard extends StatelessWidget {
                 spreadRadius: 0,
               ),
             ],
+            // 選択時の外枠
             border:
                 isSelected
                     ? Border.all(color: Colors.yellow.shade300, width: 3)
                     : null,
           ),
-          child: Stack(
-            children: [
-              // カードの内側のグラデーション（3D効果）
-              Positioned.fill(
-                child: ClipRRect(
-                  borderRadius: BorderRadius.circular(15),
+          child: ClipRRect(
+            borderRadius: BorderRadius.circular(15),
+            child: Stack(
+              children: [
+                // カードの内側のグラデーション（3D効果）
+                Positioned.fill(
                   child: CustomPaint(
                     painter: CardGradientPainter(packData.color),
                   ),
                 ),
-              ),
 
-              // 上部のタイトルバー
-              Container(
-                height: 40,
-                padding: const EdgeInsets.symmetric(horizontal: 10),
-                decoration: BoxDecoration(
-                  color: Colors.deepPurple.shade800,
-                  borderRadius: const BorderRadius.only(
-                    topLeft: Radius.circular(15),
-                    topRight: Radius.circular(15),
+                // 上部のタイトルバー
+                Positioned(
+                  top: 0,
+                  left: 0,
+                  right: 0,
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.shade800,
+                      borderRadius: const BorderRadius.only(
+                        topLeft: Radius.circular(15),
+                        topRight: Radius.circular(15),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, 2),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
+                    child: Row(
+                      mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                      children: [
+                        const Text(
+                          'POCKET',
+                          style: TextStyle(
+                            color: Colors.white,
+                            fontWeight: FontWeight.bold,
+                            fontSize: 12,
+                          ),
+                        ),
+                        Container(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: 6,
+                            vertical: 2,
+                          ),
+                          decoration: BoxDecoration(
+                            color: Colors.black,
+                            borderRadius: BorderRadius.circular(5),
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.3),
+                                offset: const Offset(0, 1),
+                                blurRadius: 1,
+                              ),
+                            ],
+                          ),
+                          child: Text(
+                            _getRarityLabel(packData.rarityLevel),
+                            style: const TextStyle(
+                              color: Colors.white,
+                              fontWeight: FontWeight.bold,
+                              fontSize: 10,
+                            ),
+                          ),
+                        ),
+                      ],
+                    ),
                   ),
-                  boxShadow: [
-                    BoxShadow(
-                      color: Colors.black.withOpacity(0.3),
-                      offset: const Offset(0, 2),
-                      blurRadius: 2,
-                    ),
-                  ],
                 ),
-                child: Row(
-                  mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                  children: [
-                    const Text(
-                      'POCKET',
-                      style: TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                    Container(
-                      padding: const EdgeInsets.symmetric(
-                        horizontal: 6,
-                        vertical: 2,
-                      ),
+
+                // 中央のモンスターボールアイコン部分
+                Positioned(
+                  top: 40,
+                  left: 0,
+                  right: 0,
+                  bottom: 40,
+                  child: Center(
+                    child: Container(
+                      width: 80,
+                      height: 80,
                       decoration: BoxDecoration(
-                        color: Colors.black,
-                        borderRadius: BorderRadius.circular(5),
+                        color: Colors.white,
+                        shape: BoxShape.circle,
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.3),
-                            offset: const Offset(0, 1),
-                            blurRadius: 1,
+                            blurRadius: 5,
+                            spreadRadius: 1,
+                            offset: const Offset(2, 2),
+                          ),
+                          BoxShadow(
+                            color: Colors.white.withOpacity(0.5),
+                            blurRadius: 5,
+                            spreadRadius: 0,
+                            offset: const Offset(-1, -1),
                           ),
                         ],
                       ),
-                      child: Text(
-                        _getRarityLabel(packData.rarityLevel),
-                        style: const TextStyle(
-                          color: Colors.white,
-                          fontWeight: FontWeight.bold,
-                          fontSize: 10,
-                        ),
-                      ),
-                    ),
-                  ],
-                ),
-              ),
-
-              // 中央のモンスターボールアイコン部分
-              Positioned.fill(
-                top: 40,
-                bottom: 40,
-                child: Container(
-                  margin: const EdgeInsets.all(5),
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.topLeft,
-                      end: Alignment.bottomRight,
-                      colors: [
-                        packData.color.withOpacity(0.7),
-                        packData.color.withOpacity(0.5),
-                      ],
-                    ),
-                    borderRadius: BorderRadius.circular(10),
-                  ),
-                  child: Center(
-                    child: Transform(
-                      transform:
-                          Matrix4.identity()
-                            ..setEntry(3, 2, 0.001) // 3Dパースペクティブ
-                            ..rotateY(0.1) // 少しY軸で傾ける
-                            ..rotateX(0.1), // 少しX軸で傾ける
-                      alignment: Alignment.center,
-                      child: Container(
-                        width: 80,
-                        height: 80,
-                        decoration: BoxDecoration(
-                          color: Colors.white,
-                          shape: BoxShape.circle,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              blurRadius: 5,
-                              spreadRadius: 1,
-                              offset: const Offset(2, 2),
+                      child: Stack(
+                        children: [
+                          // モンスターボール上部（白）
+                          Container(
+                            width: 80,
+                            height: 40,
+                            decoration: const BoxDecoration(
+                              color: Colors.white,
+                              borderRadius: BorderRadius.only(
+                                topLeft: Radius.circular(40),
+                                topRight: Radius.circular(40),
+                              ),
                             ),
-                            BoxShadow(
-                              color: Colors.white.withOpacity(0.5),
-                              blurRadius: 5,
-                              spreadRadius: 0,
-                              offset: const Offset(-1, -1),
-                            ),
-                          ],
-                        ),
-                        child: Stack(
-                          children: [
-                            // モンスターボール上部（白）
-                            Container(
+                          ),
+                          // モンスターボール下部（色付き）
+                          Positioned(
+                            bottom: 0,
+                            child: Container(
                               width: 80,
                               height: 40,
-                              decoration: const BoxDecoration(
+                              decoration: BoxDecoration(
+                                color: packData.color.withOpacity(0.7),
+                                borderRadius: const BorderRadius.only(
+                                  bottomLeft: Radius.circular(40),
+                                  bottomRight: Radius.circular(40),
+                                ),
+                              ),
+                            ),
+                          ),
+                          // モンスターボール中央の線
+                          Positioned(
+                            top: 35,
+                            child: Container(
+                              width: 80,
+                              height: 10,
+                              color: Colors.black,
+                            ),
+                          ),
+                          // モンスターボール中央のボタン（3D効果付き）
+                          Center(
+                            child: Container(
+                              width: 25,
+                              height: 25,
+                              decoration: BoxDecoration(
                                 color: Colors.white,
-                                borderRadius: BorderRadius.only(
-                                  topLeft: Radius.circular(40),
-                                  topRight: Radius.circular(40),
+                                shape: BoxShape.circle,
+                                border: Border.all(
+                                  color: Colors.black,
+                                  width: 2,
                                 ),
+                                boxShadow: [
+                                  BoxShadow(
+                                    color: Colors.black.withOpacity(0.3),
+                                    blurRadius: 2,
+                                    spreadRadius: 0,
+                                    offset: const Offset(1, 1),
+                                  ),
+                                ],
                               ),
-                            ),
-                            // モンスターボール下部（色付き）
-                            Positioned(
-                              bottom: 0,
-                              child: Container(
-                                width: 80,
-                                height: 40,
-                                decoration: BoxDecoration(
-                                  color: packData.color.withOpacity(0.7),
-                                  borderRadius: const BorderRadius.only(
-                                    bottomLeft: Radius.circular(40),
-                                    bottomRight: Radius.circular(40),
+                              child: Center(
+                                child: Container(
+                                  width: 12,
+                                  height: 12,
+                                  decoration: BoxDecoration(
+                                    color: Colors.white,
+                                    shape: BoxShape.circle,
+                                    boxShadow: [
+                                      BoxShadow(
+                                        color: Colors.black.withOpacity(0.2),
+                                        blurRadius: 1,
+                                        spreadRadius: 0,
+                                      ),
+                                    ],
                                   ),
                                 ),
                               ),
                             ),
-                            // モンスターボール中央の線
-                            Positioned(
-                              top: 35,
-                              child: Container(
-                                width: 80,
-                                height: 10,
-                                color: Colors.black,
-                              ),
-                            ),
-                            // モンスターボール中央のボタン（3D効果付き）
-                            Center(
-                              child: Container(
-                                width: 25,
-                                height: 25,
-                                decoration: BoxDecoration(
-                                  color: Colors.white,
-                                  shape: BoxShape.circle,
-                                  border: Border.all(
-                                    color: Colors.black,
-                                    width: 2,
-                                  ),
-                                  boxShadow: [
-                                    BoxShadow(
-                                      color: Colors.black.withOpacity(0.3),
-                                      blurRadius: 2,
-                                      spreadRadius: 0,
-                                      offset: const Offset(1, 1),
-                                    ),
-                                  ],
-                                ),
-                                child: Center(
-                                  child: Container(
-                                    width: 12,
-                                    height: 12,
-                                    decoration: BoxDecoration(
-                                      color: Colors.white,
-                                      shape: BoxShape.circle,
-                                      boxShadow: [
-                                        BoxShadow(
-                                          color: Colors.black.withOpacity(0.2),
-                                          blurRadius: 1,
-                                          spreadRadius: 0,
-                                        ),
-                                      ],
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ],
-                        ),
+                          ),
+                        ],
                       ),
                     ),
                   ),
                 ),
-              ),
 
-              // 下部のラベル
-              Positioned(
-                bottom: 0,
-                left: 0,
-                right: 0,
-                child: Container(
-                  height: 40,
-                  padding: const EdgeInsets.symmetric(horizontal: 10),
-                  decoration: BoxDecoration(
-                    color: Colors.deepPurple.shade800,
-                    borderRadius: const BorderRadius.only(
-                      bottomLeft: Radius.circular(15),
-                      bottomRight: Radius.circular(15),
-                    ),
-                    boxShadow: [
-                      BoxShadow(
-                        color: Colors.black.withOpacity(0.3),
-                        offset: const Offset(0, -2),
-                        blurRadius: 2,
-                      ),
-                    ],
-                  ),
-                  child: Center(
-                    child: Text(
-                      packData.name,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 14,
-                      ),
-                      textAlign: TextAlign.center,
-                    ),
-                  ),
-                ),
-              ),
-
-              // 選択中の場合のバッジ（3D効果付き）
-              if (isSelected)
+                // 下部のラベル
                 Positioned(
                   bottom: 0,
                   left: 0,
                   right: 0,
-                  child: Transform.translate(
-                    offset: const Offset(0, 30),
+                  child: Container(
+                    height: 40,
+                    padding: const EdgeInsets.symmetric(horizontal: 10),
+                    decoration: BoxDecoration(
+                      color: Colors.deepPurple.shade800,
+                      borderRadius: const BorderRadius.only(
+                        bottomLeft: Radius.circular(15),
+                        bottomRight: Radius.circular(15),
+                      ),
+                      boxShadow: [
+                        BoxShadow(
+                          color: Colors.black.withOpacity(0.3),
+                          offset: const Offset(0, -2),
+                          blurRadius: 2,
+                        ),
+                      ],
+                    ),
                     child: Center(
-                      child: Container(
-                        padding: const EdgeInsets.symmetric(
-                          horizontal: 20,
-                          vertical: 6,
+                      child: Text(
+                        packData.name,
+                        style: const TextStyle(
+                          color: Colors.white,
+                          fontWeight: FontWeight.bold,
+                          fontSize: 14,
                         ),
-                        decoration: BoxDecoration(
-                          color: Colors.yellow.shade600,
-                          borderRadius: BorderRadius.circular(15),
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black.withOpacity(0.3),
-                              spreadRadius: 1,
-                              blurRadius: 5,
-                              offset: const Offset(0, 2),
-                            ),
-                          ],
-                        ),
-                        child: const Text(
-                          '選択中',
-                          style: TextStyle(
-                            color: Colors.black,
-                            fontWeight: FontWeight.bold,
-                            fontSize: 14,
-                          ),
-                        ),
+                        textAlign: TextAlign.center,
                       ),
                     ),
                   ),
                 ),
 
-              // 選択中のカードに光るエフェクト
-              if (isSelected) Positioned.fill(child: _buildShimmerEffect()),
-            ],
+                // 選択中のカードに光るエフェクト
+                if (isSelected) _buildGlowEffect(),
+
+                // キラキラ光のエフェクト
+                ..._buildSparkles(),
+              ],
+            ),
           ),
         ),
       ),
     );
   }
 
-  // シマーエフェクト（キラキラと光る）
-  Widget _buildShimmerEffect() {
-    return ClipRRect(
-      borderRadius: BorderRadius.circular(15),
-      child: ShaderMask(
-        shaderCallback: (rect) {
-          return LinearGradient(
-            begin: Alignment.topLeft,
-            end: Alignment.bottomRight,
-            colors: [
-              Colors.transparent,
-              Colors.white.withOpacity(0.4),
-              Colors.transparent,
-            ],
-            stops: const [0.0, 0.5, 1.0],
-          ).createShader(rect);
-        },
-        blendMode: BlendMode.srcATop,
-        child: Container(
-          decoration: BoxDecoration(
-            borderRadius: BorderRadius.circular(15),
-            border: Border.all(color: Colors.yellow.shade300, width: 3),
-          ),
-        ),
+  // 光るエフェクト（選択時の輝き）
+  Widget _buildGlowEffect() {
+    return ShaderMask(
+      shaderCallback: (rect) {
+        return LinearGradient(
+          begin: Alignment.topLeft,
+          end: Alignment.bottomRight,
+          colors: [
+            Colors.transparent,
+            Colors.white.withOpacity(0.2),
+            Colors.transparent,
+          ],
+          stops: const [0.0, 0.5, 1.0],
+        ).createShader(rect);
+      },
+      blendMode: BlendMode.srcATop,
+      child: Container(
+        decoration: BoxDecoration(borderRadius: BorderRadius.circular(15)),
       ),
     );
+  }
+
+  // キラキラ光る小さな点を追加
+  List<Widget> _buildSparkles() {
+    final random = math.Random(packData.hashCode);
+    final sparkleCount = 3 + random.nextInt(3);
+
+    return List.generate(sparkleCount, (index) {
+      final size = 3.0 + random.nextDouble() * 3.0;
+
+      return Positioned(
+        left: random.nextDouble() * 150,
+        top: random.nextDouble() * 210,
+        child: Container(
+          width: size,
+          height: size,
+          decoration: BoxDecoration(
+            color: Colors.white.withOpacity(0.7),
+            shape: BoxShape.circle,
+            boxShadow: [
+              BoxShadow(
+                color: Colors.white.withOpacity(0.5),
+                blurRadius: 3,
+                spreadRadius: 1,
+              ),
+            ],
+          ),
+        ),
+      );
+    });
   }
 
   String _getRarityLabel(int rarityLevel) {

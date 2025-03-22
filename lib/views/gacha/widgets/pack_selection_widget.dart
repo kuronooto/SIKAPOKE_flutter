@@ -81,8 +81,7 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
       widget.viewModel.selectPack(0);
     }
 
-    final double radius =
-        MediaQuery.of(context).size.width * 0.4; // 円の半径を大きくして横回転感を強調
+    final double radius = MediaQuery.of(context).size.width * 0.4; // 円の半径
     final double centerY =
         MediaQuery.of(context).size.height * 0.35; // 中心位置のY座標
 
@@ -91,33 +90,31 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
         Expanded(
           child: Stack(
             alignment: Alignment.center,
+            fit: StackFit.expand, // スタックが利用可能な全領域を使用
             children: [
-              // 背景のグラデーション
-              Container(
-                decoration: BoxDecoration(
-                  gradient: RadialGradient(
-                    colors: [
-                      Colors.purple.shade100.withOpacity(0.7),
-                      Colors.blue.shade100.withOpacity(0.3),
-                    ],
-                    radius: 0.7,
-                  ),
-                ),
-              ),
+              // 背景のグラデーション - 透明にして実質削除
+              Container(color: Colors.transparent),
 
-              // 円形の軌道を示す半透明の円（横から見た楕円）
-              Container(
-                width: MediaQuery.of(context).size.width * 0.9,
-                height:
-                    MediaQuery.of(context).size.width * 0.3, // 縦に潰して円が横から見える感じに
-                decoration: BoxDecoration(
-                  shape: BoxShape.rectangle,
-                  borderRadius: BorderRadius.circular(
-                    MediaQuery.of(context).size.width * 0.15,
-                  ),
-                  border: Border.all(
-                    color: Colors.deepPurple.withOpacity(0.2),
-                    width: 2,
+              // 円形の軌道を示す半透明の円（横から見た楕円）- 透明度を高くして目立たなくする
+              Positioned(
+                left: MediaQuery.of(context).size.width * 0.05,
+                right: MediaQuery.of(context).size.width * 0.05,
+                top: centerY - MediaQuery.of(context).size.width * 0.15,
+                child: Container(
+                  height:
+                      MediaQuery.of(context).size.width *
+                      0.3, // 縦に潰して円が横から見える感じに
+                  decoration: BoxDecoration(
+                    shape: BoxShape.rectangle,
+                    borderRadius: BorderRadius.circular(
+                      MediaQuery.of(context).size.width * 0.15,
+                    ),
+                    border: Border.all(
+                      color: Colors.deepPurple.withOpacity(
+                        0.1,
+                      ), // 透明度を高くして目立たなくする
+                      width: 1, // 線を細くする
+                    ),
                   ),
                 ),
               ),
@@ -178,149 +175,9 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
                 ),
               ),
 
-              // 全てのパックを円周上に配置
-              ...List.generate(packCount, (index) {
-                // 各パックの角度を計算
-                final indexDiff =
-                    (index - widget.viewModel.selectedPackIndex) % packCount;
-                final angle = (2 * pi * indexDiff / packCount) + _rotationAngle;
-
-                // 3D位置の計算（横回転を表現）
-                final x = sin(angle) * radius; // x座標はsin(angle)で計算（横回転）
-                final z = cos(angle) * radius; // z座標はcos(angle)で計算（横回転）
-                final scale = GachaUtils.map(
-                  z,
-                  -radius,
-                  radius,
-                  0.6,
-                  1.2,
-                ); // スケール差を大きくして立体感を強調
-
-                // 横回転に見せるために、奥行きに応じてY座標をわずかに調整
-                final yOffset = -GachaUtils.map(z, -radius, radius, -10, 10);
-
-                // Z座標に応じた不透明度（奥のパックは少し透明に）
-                final opacity = GachaUtils.map(z, -radius, radius, 0.5, 1.0);
-
-                // 選択中かどうか
-                final isSelected = index == widget.viewModel.selectedPackIndex;
-
-                // 正面にあるか（選択中でなくても正面に来る場合がある）
-                final isInFront = z > radius * 0.7;
-
-                // 重なり順を制御するためのZIndex（奥のパックから描画）
-                final zIndex = 1000 - z.round();
-
-                return Positioned(
-                  left: MediaQuery.of(context).size.width / 2 + x - 75,
-                  top: centerY + yOffset,
-                  child: Transform(
-                    transform:
-                        Matrix4.identity()
-                          ..setEntry(3, 2, 0.001) // パースペクティブ
-                          ..scale(scale), // Z軸に応じたスケール
-                    // パックの回転を削除して常に正面を向くように修正
-                    alignment: Alignment.center,
-                    child: Opacity(
-                      opacity: opacity,
-                      child: Stack(
-                        children: [
-                          // パックカード
-                          GestureDetector(
-                            onTap:
-                                widget.viewModel.isSelecting
-                                    ? null
-                                    : () => _animateToPackIndex(index),
-                            child: PackCard(
-                              packData: widget.viewModel.packs[index],
-                              isSelected: isSelected, // 正面判定を削除
-                              scale: 1.0,
-                              rotation: 0.0,
-                              onTap: null,
-                            ),
-                          ),
-
-                          // 選択中のパックにバッジを表示（正面判定を削除）
-                          if (isSelected)
-                            Positioned(
-                              bottom: -25,
-                              left: 0,
-                              right: 0,
-                              child: Center(
-                                child: Container(
-                                  padding: const EdgeInsets.symmetric(
-                                    horizontal: 20,
-                                    vertical: 5,
-                                  ),
-                                  decoration: BoxDecoration(
-                                    color: Colors.yellow.shade600,
-                                    borderRadius: BorderRadius.circular(15),
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.3),
-                                        spreadRadius: 1,
-                                        blurRadius: 5,
-                                        offset: const Offset(0, 2),
-                                      ),
-                                    ],
-                                  ),
-                                  child: const Text(
-                                    '選択中',
-                                    style: TextStyle(
-                                      color: Colors.black,
-                                      fontWeight: FontWeight.bold,
-                                      fontSize: 14,
-                                    ),
-                                  ),
-                                ),
-                              ),
-                            ),
-                        ],
-                      ),
-                    ),
-                  ),
-                );
-              }),
-
-              // 正面位置を示す半透明のフレーム
-              Positioned(
-                left: MediaQuery.of(context).size.width / 2 - 80,
-                top: centerY - 105,
-                child: Container(
-                  width: 160,
-                  height: 224,
-                  decoration: BoxDecoration(
-                    shape: BoxShape.rectangle,
-                    borderRadius: BorderRadius.circular(20),
-                    border: Border.all(
-                      color: Colors.white.withOpacity(0.3),
-                      width: 2,
-                    ),
-                  ),
-                ),
-              ),
-
-              // 選択中のパックが正面にある場合、ハイライト効果を追加
-              if (_isSelectedPackInFront())
-                Positioned(
-                  left: MediaQuery.of(context).size.width / 2 - 80,
-                  top: centerY - 105,
-                  child: Container(
-                    width: 160,
-                    height: 224,
-                    decoration: BoxDecoration(
-                      shape: BoxShape.rectangle,
-                      borderRadius: BorderRadius.circular(20),
-                      boxShadow: [
-                        BoxShadow(
-                          color: Colors.yellow.withOpacity(0.3),
-                          spreadRadius: 5,
-                          blurRadius: 15,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
+              // パックを表示するとき、zIndex（前後関係）を明示的に制御する
+              // 奥のパックから前方のパックへとZインデックスを考慮して描画
+              ..._buildPackCards(context, packCount, radius, centerY),
             ],
           ),
         ),
@@ -328,16 +185,100 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     );
   }
 
+  // パックカードを適切なZ順序で配置するヘルパーメソッド
+  List<Widget> _buildPackCards(
+    BuildContext context,
+    int packCount,
+    double radius,
+    double centerY,
+  ) {
+    // 選択されたパックを基準に角度を計算
+    final selectedIndex = widget.viewModel.selectedPackIndex;
+
+    // 全パックのZ位置を計算し、奥から前へのソート用リスト
+    final List<MapEntry<int, double>> packZOrder = [];
+
+    for (int i = 0; i < packCount; i++) {
+      // 各パックの角度を計算（選択中パックを基準として）
+      final indexOffset = (i - selectedIndex) % packCount;
+      final angle = (2 * pi * indexOffset / packCount) + _rotationAngle;
+
+      // Z座標を計算（cos関数で前後位置を決定）
+      final z = cos(angle) * radius;
+
+      packZOrder.add(MapEntry(i, z));
+    }
+
+    // Zインデックスに基づいて奥から前へソート（Zが小さい＝奥のものから描画）
+    packZOrder.sort((a, b) => a.value.compareTo(b.value));
+
+    // ソートされた順序でパックウィジェットを作成
+    final List<Widget> packWidgets = [];
+
+    // 選択中のハイライト効果もここでは削除（黄色い背景の原因になるため）
+
+    // 全てのパックカードを描画
+    for (final entry in packZOrder) {
+      final index = entry.key;
+      final z = entry.value;
+
+      // 選択インデックスとの差を計算（円周上の位置）
+      final indexOffset = (index - selectedIndex) % packCount;
+      // 角度を計算
+      final angle = (2 * pi * indexOffset / packCount) + _rotationAngle;
+
+      // X座標（sin関数で左右位置を決定）
+      final x = sin(angle) * radius;
+
+      // スケール（奥行きに応じて拡大/縮小）
+      final scale = GachaUtils.map(z, -radius, radius, 0.6, 1.2);
+
+      // Y座標の微調整（奥行き感を強調）
+      final yOffset = -GachaUtils.map(z, -radius, radius, -10, 10);
+
+      // 不透明度（奥のパックは少し透明に）
+      final opacity = GachaUtils.map(z, -radius, radius, 0.5, 1.0);
+
+      // 選択中かどうか
+      final isSelected = index == selectedIndex;
+
+      packWidgets.add(
+        Positioned(
+          left: MediaQuery.of(context).size.width / 2 + x - 75,
+          top: centerY + yOffset,
+          child: Transform(
+            transform:
+                Matrix4.identity()
+                  ..setEntry(3, 2, 0.001) // パースペクティブ
+                  ..scale(scale), // Z軸に応じたスケール
+            alignment: Alignment.center,
+            child: Opacity(
+              opacity: opacity,
+              child: GestureDetector(
+                onTap:
+                    widget.viewModel.isSelecting
+                        ? null
+                        : () => _animateToPackIndex(index),
+                child: PackCard(
+                  packData: widget.viewModel.packs[index],
+                  isSelected: isSelected,
+                  scale: 1.0,
+                  rotation: 0.0,
+                  onTap: null,
+                ),
+              ),
+            ),
+          ),
+        ),
+      );
+    }
+
+    return packWidgets;
+  }
+
   bool _isSelectedPackInFront() {
-    if (widget.viewModel.selectedPackIndex < 0 ||
-        widget.viewModel.packs.isEmpty)
-      return false;
-
-    // 選択中のパックの角度
-    final angle = _rotationAngle;
-
-    // 正面判定（Z軸が正の値で、かつある程度大きい場合）
-    return angle.abs() < 0.3; // 正面の許容範囲
+    // 選択中のパックは常に正面にあると考える
+    return true;
   }
 
   // 回転角度から選択中のパックインデックスを更新
@@ -369,6 +310,9 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
     if (closestIndex != widget.viewModel.selectedPackIndex) {
       widget.onPackSelected(closestIndex);
       widget.playSelectSound();
+
+      // パックが変わったら回転角度をリセット
+      _rotationAngle = 0.0;
     }
   }
 
@@ -376,109 +320,23 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
   void _animateToPackIndex(int targetIndex) {
     if (targetIndex == widget.viewModel.selectedPackIndex) return;
 
-    // 現在の回転角度
-    final currentAngle = _rotationAngle;
-
-    // 選択中のパックと目標パックの角度差
-    final indexDiff =
-        (targetIndex -
-            widget.viewModel.selectedPackIndex +
-            widget.viewModel.packs.length) %
-        widget.viewModel.packs.length;
-    final angleChange = -2 * pi * indexDiff / widget.viewModel.packs.length;
-
-    // 最短経路の計算
-    var targetAngle = currentAngle + angleChange;
-
-    // アニメーションの持続時間（距離に応じて調整）
-    final duration = Duration(
-      milliseconds: min(800, (angleChange.abs() * 500).round()),
-    );
-
     // 選択パックを先に更新
     widget.onPackSelected(targetIndex);
     widget.playSelectSound();
 
-    // 回転アニメーション
-    AnimationController animController = AnimationController(
-      duration: duration,
-      vsync: this,
-    );
-
-    Animation<double> anim = Tween<double>(
-      begin: currentAngle,
-      end: targetAngle,
-    ).animate(
-      CurvedAnimation(parent: animController, curve: Curves.easeOutCubic),
-    );
-
-    animController.addListener(() {
-      setState(() {
-        _rotationAngle = anim.value;
-      });
+    // 選択が変わったら回転角度をリセット
+    setState(() {
+      _rotationAngle = 0.0;
     });
-
-    animController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        animController.dispose();
-      }
-    });
-
-    animController.forward();
   }
 
   // スワイプ終了時、選択中のパックが正面に来るように調整
   void _snapToSelectedPack() {
     if (widget.viewModel.isSelecting || widget.viewModel.packs.isEmpty) return;
 
-    // 現在の回転角度を調整して、選択中のパックが正面に来るようにする
-    final targetAngle =
-        _rotationAngle.abs() < pi
-            ? 0.0
-            : _rotationAngle > 0
-            ? 2 * pi
-            : -2 * pi;
-
-    // 小さな調整なら即座に適用、大きな調整ならアニメーション
-    final angleDiff = (targetAngle - _rotationAngle).abs();
-    if (angleDiff < 0.1) {
-      setState(() {
-        _rotationAngle = targetAngle;
-      });
-    } else {
-      // アニメーションで滑らかに移動
-      final duration = Duration(
-        milliseconds: min(500, (angleDiff * 300).round()),
-      );
-
-      AnimationController animController = AnimationController(
-        duration: duration,
-        vsync: this,
-      );
-
-      Animation<double> anim = Tween<double>(
-        begin: _rotationAngle,
-        end: targetAngle,
-      ).animate(
-        CurvedAnimation(parent: animController, curve: Curves.easeOutCubic),
-      );
-
-      animController.addListener(() {
-        setState(() {
-          _rotationAngle = anim.value;
-        });
-      });
-
-      animController.addStatusListener((status) {
-        if (status == AnimationStatus.completed) {
-          setState(() {
-            _rotationAngle = targetAngle % (2 * pi); // 確実に0〜2πの範囲に正規化
-          });
-          animController.dispose();
-        }
-      });
-
-      animController.forward();
-    }
+    // 選択されたパックが正面にくるように回転角度をリセット
+    setState(() {
+      _rotationAngle = 0.0;
+    });
   }
 }

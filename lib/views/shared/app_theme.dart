@@ -28,13 +28,14 @@ class AppTheme {
     );
   }
 
+  // 薄い黄色部分を削除し、純粋な青紫グラデーションに変更
   static Gradient get backgroundGradient {
     return LinearGradient(
       begin: Alignment.topCenter,
       end: Alignment.bottomCenter,
       colors: [
-        const Color(0xFFD6E4FF), // 薄い水色から
-        const Color(0xFFD6D6FF), // 薄い紫色へ
+        const Color(0xFFE6E9FF), // より薄い青色
+        const Color(0xFFE1E1FF), // より薄い紫色
       ],
     );
   }
