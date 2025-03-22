@@ -11,11 +11,18 @@ class BattlePage extends StatefulWidget {
 class _BattlePageState extends State<BattlePage> {
   final BattleViewModel _viewModel = BattleViewModel();
   String infoText = '';
+  bool _isLoading = false; // ボタンの状態を管理
 
   Future<void> _handleBattleStart() async {
+    setState(() {
+      _isLoading = true; // ボタンを無効化
+    });
+
     final result = await _viewModel.handleBattleStart();
+
     setState(() {
       infoText = result;
+      _isLoading = false; // 処理完了後にボタンを有効化
     });
   }
 
@@ -27,15 +34,17 @@ class _BattlePageState extends State<BattlePage> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            ElevatedButton(
-              onPressed: _handleBattleStart,
-              style: ElevatedButton.styleFrom(
-                backgroundColor: Colors.green,
-                minimumSize: const Size(200, 50),
-                textStyle: const TextStyle(fontSize: 18),
-              ),
-              child: const Text('バトル開始'),
-            ),
+            _isLoading
+                ? const CircularProgressIndicator() // 読み込みアニメーション
+                : ElevatedButton(
+                  onPressed: _isLoading ? null : _handleBattleStart,
+                  style: ElevatedButton.styleFrom(
+                    backgroundColor: Colors.green,
+                    minimumSize: const Size(200, 50),
+                    textStyle: const TextStyle(fontSize: 18),
+                  ),
+                  child: const Text('バトル開始'),
+                ),
             const SizedBox(height: 20),
             if (infoText.isNotEmpty)
               Text(

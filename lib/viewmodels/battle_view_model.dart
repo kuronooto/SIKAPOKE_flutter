@@ -1,6 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
-import '../models/room_model.dart';
+import 'dart:developer'; // ログ出力用
 
 class BattleViewModel {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -36,10 +36,13 @@ class BattleViewModel {
           'room_status': 'waiting',
           'player1_id': userId,
           'player2_id': null,
+          'created_at':
+              FieldValue.serverTimestamp(), // Firestore サーバータイムスタンプを設定
         });
         return '新しいルームを作成しました: ${newRoom.id}';
       }
     } catch (e) {
+      log('Firestore エラー: $e'); // エラーをログに出力
       return 'エラー: ${e.toString()}';
     }
   }

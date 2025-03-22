@@ -7,7 +7,13 @@ import 'pages/auth_page.dart'; // 追加: LoginPage のインポート
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp(options: DefaultFirebaseOptions.currentPlatform);
+  try {
+    await Firebase.initializeApp(
+      options: DefaultFirebaseOptions.currentPlatform,
+    );
+  } catch (e) {
+    debugPrint('Firebase 初期化エラー: $e'); // 初期化エラーをログに出力
+  }
   runApp(const MainApp());
 }
 
