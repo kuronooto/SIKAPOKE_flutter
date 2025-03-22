@@ -37,18 +37,19 @@ class BattleViewModel {
             'turn': 1,
             'player1_point': 0,
             'player2_point': 0,
-            'player1_over_mount': 0, // 修正: 配列から整数型に変更
-            'player2_over_mount': 0, // 修正: 配列から整数型に変更
+            'player1_over_mount': 0,
+            'player2_over_mount': 0,
+            'player1_card': null,
+            'player2_card': null,
           },
           'logs': {
-            'player1_log': {'type': [], 'power': []},
-            'player2_log': {'type': [], 'power': []},
+            'player1_log': {'element': [], 'power': []},
+            'player2_log': {'element': [], 'power': []},
           },
           'room_status': 'waiting',
           'player1_id': userId,
           'player2_id': null,
-          'created_at':
-              FieldValue.serverTimestamp(), // Firestore サーバータイムスタンプを設定
+          'created_at': FieldValue.serverTimestamp(),
         });
         currentRoomId = newRoom.id; // ルームIDを保持
         return '新しいルームを作成しました: ${newRoom.id}';
@@ -74,7 +75,7 @@ class BattleViewModel {
           await _firestore.collection('rooms').doc(roomId).get();
       if (roomSnapshot.exists) {
         final data = roomSnapshot.data();
-        return data?['player2_id'] != null; // player2_id が設定されているか確認
+        return data?['player2_id'] != null && data?['room_status'] == 'match';
       }
       return false;
     } catch (e) {
@@ -93,12 +94,37 @@ class BattleViewModel {
           'roomId': roomId,
           'player1Id': data?['player1_id'],
           'player2Id': data?['player2_id'],
-          'gameState': data?['game_state'], // game_state を取得
+          'gameState': data?['game_state'],
+          'logs': data?['logs'],
         };
       }
     } catch (e) {
       log('ルームデータ取得エラー: $e');
     }
     return null;
+  }
+
+  // ルームの状態を更新する
+  Future<void> updateRoomStatus(String roomId, String status) async {
+    try {
+      await _firestore.collection('rooms').doc(roomId).update({
+        'room_status': status,
+      });
+    } catch (e) {
+      log('ルーム状態更新エラー: $e');
+    }
+  }
+
+  // ゲーム終了時の処理
+  Future<void> finishGame(String roomId, String winnerId) async {
+    try {
+      await _firestore.collection('rooms').doc(roomId).update({
+        'room_status': 'finished',
+        'winner_id': winnerId,
+        'finished_at': FieldValue.serverTimestamp(),
+      });
+    } catch (e) {
+      log('ゲーム終了処理エラー: $e');
+    }
   }
 }
