@@ -43,6 +43,7 @@ class _RoomPageState extends State<RoomPage> {
     super.initState();
     _fetchPlayerDeck();
     _listenToGameState();
+    _listenToLogs(); // logs の監視を開始
   }
 
   Future<void> _fetchPlayerDeck() async {
@@ -99,6 +100,22 @@ class _RoomPageState extends State<RoomPage> {
           );
           _processTurn(player1CardData, player2CardData, logs);
         }
+      }
+    });
+  }
+
+  void _listenToLogs() {
+    final roomRef = FirebaseFirestore.instance
+        .collection('rooms')
+        .doc(widget.roomId);
+    roomRef.snapshots().listen((snapshot) {
+      final data = snapshot.data();
+      if (data != null) {
+        final logs = data['logs'] as Map<String, dynamic>;
+
+        // logs の変更を反映
+        print('Logs updated: $logs');
+        // 必要に応じて logs を UI に反映させる処理を追加
       }
     });
   }
