@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
-import '../../../view_models/gacha_view_model.dart';
+import '../../../viewmodels/gacha_view_model.dart';
 import '../../shared/app_theme.dart' as theme;
 import 'pack_selection_widget.dart';
 import 'pack_opening_animation.dart';

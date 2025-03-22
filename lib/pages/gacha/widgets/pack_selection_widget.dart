@@ -1,6 +1,6 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
-import '../../../view_models/gacha_view_model.dart';
+import '../../../viewmodels/gacha_view_model.dart';
 import 'gacha_utils.dart';
 import 'pack_card.dart';
 import 'pack_card.dart' show SwipeDirection; // SwipeDirection列挙型のインポート

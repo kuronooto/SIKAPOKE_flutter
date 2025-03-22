@@ -2,7 +2,7 @@ import 'dart:math';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import '../../../models/pack_model.dart';
-import '../../../view_models/gacha_view_model.dart';
+import '../../../viewmodels/gacha_view_model.dart';
 import 'gacha_utils.dart';
 import 'pack_card.dart';
 
