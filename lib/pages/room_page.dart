@@ -15,7 +15,7 @@ class RoomPage extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
-      onWillPop: () async => true, // 戻るボタンを無効化
+      onWillPop: () async => false, // 戻るボタンを無効化
       child: Scaffold(
         appBar: AppBar(
           title: const Text('Room Page'),
