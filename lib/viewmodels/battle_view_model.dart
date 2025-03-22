@@ -41,8 +41,8 @@ class BattleViewModel {
             'player2_over_mount': 0, // 修正: 配列から整数型に変更
           },
           'logs': {
-            'player1_log': {'element': [], 'power': []},
-            'player2_log': {'element': [], 'power': []},
+            'player1_log': {'type': [], 'power': []},
+            'player2_log': {'type': [], 'power': []},
           },
           'room_status': 'waiting',
           'player1_id': userId,
