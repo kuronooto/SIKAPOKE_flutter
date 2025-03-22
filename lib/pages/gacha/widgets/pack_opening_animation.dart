@@ -40,6 +40,16 @@ class _PackOpeningAnimationState extends State<PackOpeningAnimation> {
     final List<Color> bgColors = GachaUtils.getBackgroundColors(rarityLevel);
     final Color glowColor = GachaUtils.getGlowColor(rarityLevel);
 
+    // ローディング状態のチェック
+    if (widget.viewModel.isLoading) {
+      return _buildLoadingState(bgColors, selectedPack);
+    }
+
+    // エラーメッセージがある場合
+    if (widget.viewModel.errorMessage != null) {
+      return _buildErrorState(bgColors, widget.viewModel.errorMessage!);
+    }
+
     return AnimatedBuilder(
       animation: widget.animation,
       builder: (context, child) {
@@ -63,6 +73,127 @@ class _PackOpeningAnimationState extends State<PackOpeningAnimation> {
           return _buildCardRevealState(value, bgColors, glowColor, rarityLevel);
         }
       },
+    );
+  }
+
+  // ローディング状態の表示
+  Widget _buildLoadingState(List<Color> bgColors, PackModel selectedPack) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: bgColors,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            // ローディングアニメーション
+            Container(
+              width: 100,
+              height: 100,
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                shape: BoxShape.circle,
+              ),
+              child: const Padding(
+                padding: EdgeInsets.all(20.0),
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                  strokeWidth: 5.0,
+                ),
+              ),
+            ),
+            const SizedBox(height: 30),
+            Text(
+              'カードを検索中...',
+              style: TextStyle(
+                color: Colors.white,
+                fontSize: 20,
+                fontWeight: FontWeight.bold,
+                shadows: [
+                  Shadow(
+                    offset: Offset(1, 1),
+                    blurRadius: 3.0,
+                    color: Colors.black.withOpacity(0.5),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: 10),
+            Text(
+              '${selectedPack.name}からカードを取得しています',
+              style: TextStyle(
+                color: Colors.white.withOpacity(0.8),
+                fontSize: 16,
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // エラー状態の表示
+  Widget _buildErrorState(List<Color> bgColors, String errorMessage) {
+    return Container(
+      decoration: BoxDecoration(
+        gradient: LinearGradient(
+          begin: Alignment.topCenter,
+          end: Alignment.bottomCenter,
+          colors: bgColors,
+        ),
+      ),
+      child: Center(
+        child: Column(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            Icon(
+              Icons.error_outline,
+              size: 80,
+              color: Colors.white.withOpacity(0.8),
+            ),
+            const SizedBox(height: 20),
+            Container(
+              padding: const EdgeInsets.all(16),
+              margin: const EdgeInsets.symmetric(horizontal: 24),
+              decoration: BoxDecoration(
+                color: Colors.white.withOpacity(0.2),
+                borderRadius: BorderRadius.circular(12),
+              ),
+              child: Text(
+                errorMessage,
+                textAlign: TextAlign.center,
+                style: const TextStyle(color: Colors.white, fontSize: 16),
+              ),
+            ),
+            const SizedBox(height: 30),
+            ElevatedButton(
+              onPressed: () {
+                // GachaViewModelのリセット関数を呼び出す
+                widget.viewModel.resetSelection();
+              },
+              style: ElevatedButton.styleFrom(
+                backgroundColor: Colors.white,
+                foregroundColor: Colors.deepPurple,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: 30,
+                  vertical: 12,
+                ),
+                shape: RoundedRectangleBorder(
+                  borderRadius: BorderRadius.circular(30),
+                ),
+              ),
+              child: const Text(
+                'もう一度試す',
+                style: TextStyle(fontWeight: FontWeight.bold),
+              ),
+            ),
+          ],
+        ),
+      ),
     );
   }
 
@@ -454,7 +585,7 @@ class _PackOpeningAnimationState extends State<PackOpeningAnimation> {
     );
   }
 
-  // カードが現れる状態 - 既存の実装を維持
+  // カードが現れる状態
   Widget _buildCardRevealState(
     double value,
     List<Color> bgColors,

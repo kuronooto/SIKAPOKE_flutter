@@ -1,8 +1,11 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
 import '../models/pack_model.dart';
+import '../services/card_gacha_service.dart';
 
 class GachaViewModel extends ChangeNotifier {
+  final CardGachaService _cardGachaService = CardGachaService();
+
   final List<PackModel> packs = [
     PackModel(
       id: 'normal',
@@ -66,12 +69,16 @@ class GachaViewModel extends ChangeNotifier {
   int _selectedPackIndex = 0;
   bool _isSelecting = false;
   bool _isOpening = false;
+  bool _isLoading = false; // カード取得中のローディング状態
   CardResult? _result;
+  String? _errorMessage; // エラーメッセージ
 
   int get selectedPackIndex => _selectedPackIndex;
   bool get isSelecting => _isSelecting;
   bool get isOpening => _isOpening;
+  bool get isLoading => _isLoading;
   CardResult? get result => _result;
+  String? get errorMessage => _errorMessage;
   bool get hasSelectedPack => _selectedPackIndex != -1;
 
   void startPackSelection() {
@@ -90,22 +97,43 @@ class GachaViewModel extends ChangeNotifier {
     notifyListeners();
   }
 
-  void openSelectedPack() {
+  void openSelectedPack() async {
     if (_isOpening || _selectedPackIndex == -1) return;
 
     _isOpening = true;
+    _isLoading = true;
     _result = null; // 前回の結果をクリア
+    _errorMessage = null; // エラーメッセージをクリア
     notifyListeners();
 
-    // 実際のアプリではここで API 呼び出しなどを行い結果を取得
-    _generateResult();
+    try {
+      // 選択したパックのレアリティに基づいてカードを取得
+      final selectedPack = packs[_selectedPackIndex];
+      final cardResult = await _cardGachaService.getRandomCard(
+        selectedPack.rarityLevel,
+      );
+
+      _result = cardResult;
+      _isLoading = false;
+      notifyListeners();
+    } catch (e) {
+      _errorMessage = 'カードの取得に失敗しました: ${e.toString()}';
+      _isLoading = false;
+      notifyListeners();
+
+      // エラー後、3秒後に状態をリセット
+      Future.delayed(const Duration(seconds: 3), () {
+        resetSelection();
+      });
+    }
   }
 
   void resetSelection() {
     _isSelecting = false;
     _isOpening = false;
+    _isLoading = false;
     _result = null;
-    // _selectedPackIndex = -1;  // これは削除：これを-1にするとパックなしの状態になる
+    _errorMessage = null;
     notifyListeners();
   }
 
@@ -113,7 +141,9 @@ class GachaViewModel extends ChangeNotifier {
   void completeReset() {
     _isSelecting = false;
     _isOpening = false;
+    _isLoading = false;
     _result = null;
+    _errorMessage = null;
     _selectedPackIndex = 0; // デフォルトのパックを選択
     notifyListeners();
   }
@@ -126,152 +156,5 @@ class GachaViewModel extends ChangeNotifier {
   void completeOpening() {
     // _isOpening = false; // この行はコメントアウト：結果表示後もisOpening状態を保持
     notifyListeners();
-  }
-
-  // ガチャ結果の生成（実際のアプリではサーバーから取得するかも）
-  void _generateResult() {
-    final selectedPack = packs[_selectedPackIndex];
-
-    // パックに応じた確率でレア度を決定
-    final baseRarity = selectedPack.rarityLevel;
-    final random = Random();
-    int resultRarity;
-
-    // レア度による確率計算
-    final chance = random.nextDouble();
-
-    // パックの種類によって確率を変える
-    switch (baseRarity) {
-      case 1: // ノーマルパック
-        if (chance > 0.98) {
-          resultRarity = 5; // 2% で最高レア
-        } else if (chance > 0.90) {
-          resultRarity = 4; // 8% で超レア
-        } else if (chance > 0.70) {
-          resultRarity = 3; // 20% で上レア
-        } else if (chance > 0.40) {
-          resultRarity = 2; // 30% で中レア
-        } else {
-          resultRarity = 1; // 40% で通常レア
-        }
-        break;
-
-      case 2: // レアパック
-        if (chance > 0.95) {
-          resultRarity = 5; // 5% で最高レア
-        } else if (chance > 0.80) {
-          resultRarity = 4; // 15% で超レア
-        } else if (chance > 0.50) {
-          resultRarity = 3; // 30% で上レア
-        } else {
-          resultRarity = 2; // 50% で中レア
-        }
-        break;
-
-      case 3: // スーパーレアパック
-        if (chance > 0.85) {
-          resultRarity = 5; // 15% で最高レア
-        } else if (chance > 0.60) {
-          resultRarity = 4; // 25% で超レア
-        } else {
-          resultRarity = 3; // 60% で上レア
-        }
-        break;
-
-      case 4: // レジェンドパック
-        if (chance > 0.60) {
-          resultRarity = 5; // 40% で最高レア
-        } else {
-          resultRarity = 4; // 60% で超レア
-        }
-        break;
-
-      default:
-        resultRarity = baseRarity;
-    }
-
-    // 名前バリエーションの追加
-    final nameVariation = random.nextInt(3); // 同じレア度でも複数の名前バリエーション
-
-    _result = CardResult(
-      id: 'card_${DateTime.now().millisecondsSinceEpoch}',
-      name: _getCardName(resultRarity, nameVariation),
-      imagePath: _getCardImagePath(resultRarity, nameVariation),
-      rarityLevel: resultRarity,
-      description: _getCardDescription(resultRarity, nameVariation),
-    );
-  }
-
-  String _getCardName(int rarity, int variation) {
-    // レア度ごとの名前バリエーション
-    final namesByRarity = [
-      // レア度1（ノーマル）
-      ['ノーマルキャラA', 'ノーマルキャラB', 'ノーマルキャラC'],
-      // レア度2（レア）
-      ['レアキャラA', 'レアキャラB', 'レアキャラC'],
-      // レア度3（スーパーレア）
-      ['スーパーレアキャラA', 'スーパーレアキャラB', 'スーパーレアキャラC'],
-      // レア度4（ウルトラレア）
-      ['ウルトラレアキャラA', 'ウルトラレアキャラB', 'ウルトラレアキャラC'],
-      // レア度5（レジェンド）
-      ['レジェンドキャラA', 'レジェンドキャラB', 'レジェンドキャラC'],
-    ];
-
-    final normalizedRarity = min(rarity - 1, namesByRarity.length - 1);
-    final normalizedVariation = min(
-      variation,
-      namesByRarity[normalizedRarity].length - 1,
-    );
-
-    return namesByRarity[normalizedRarity][normalizedVariation];
-  }
-
-  String _getCardImagePath(int rarity, int variation) {
-    // 実際にはバリエーションごとに異なる画像パスを返す
-    return 'assets/images/cards/card_${rarity}_$variation.png';
-  }
-
-  String _getCardDescription(int rarity, int variation) {
-    // レア度や種類ごとに異なる説明文
-    final descriptions = [
-      // レア度1
-      [
-        '一番よく見かけるキャラクターです。',
-        'どこにでもいるキャラクターですが、愛嬌があります。',
-        '珍しくはありませんが、大事に育ててあげてください。',
-      ],
-      // レア度2
-      [
-        'やや珍しいキャラクターです。特殊な技を持っています。',
-        '都会で見かけることが多いキャラクターです。',
-        '少し変わった性格のキャラクターです。',
-      ],
-      // レア度3
-      [
-        '特殊な能力を持つレアなキャラクターです！',
-        '様々なバトルで活躍する強力なキャラクターです！',
-        '珍しい姿をしたスーパーレアキャラクターです！',
-      ],
-      // レア度4
-      [
-        '伝説級の強さを持つキャラクターです！',
-        '非常に珍しい特別なキャラクターです！',
-        'あなたはラッキー！めったに出会えない強力なキャラクターです！',
-      ],
-      // レア度5
-      [
-        '神話に登場する伝説の存在です！大事にしてください！',
-        '何千年に一度出会えるかどうかの超激レアキャラクターです！',
-        'おめでとうございます！最高レアリティのキャラクターをゲットしました！',
-      ],
-    ];
-
-    final normalizedRarity = min(rarity - 1, descriptions.length - 1);
-    final normalizedVariation = min(
-      variation,
-      descriptions[normalizedRarity].length - 1,
-    );
-
-    return descriptions[normalizedRarity][normalizedVariation];
   }
 }
