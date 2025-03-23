@@ -512,11 +512,11 @@ class _RoomPageState extends State<RoomPage> {
     }
     // 敗北条件: OMP 100超過
     else if (player1OMP > 100) {
-      gameOverResult = isPlayer1 ? 'あなたの負け (OMP超過)' : 'あなたの勝ち！ (相手のOMP超過)';
+      gameOverResult = isPlayer1 ? 'あなたの勝ち！ (相手のOMP超過)' : 'あなたの負け！ (あなたのOMP超過)';
       isGameOver = true;
       print('プレイヤー1のOMPが100超過: $player1OMP');
     } else if (player2OMP > 100) {
-      gameOverResult = isPlayer1 ? 'あなたの勝ち！ (相手のOMP超過)' : 'あなたの負け (OMP超過)';
+      gameOverResult = isPlayer1 ? 'あなたの負け！ (あなたのOMP超過)' : 'あなたの勝ち (相手のOMP超過)';
       isGameOver = true;
       print('プレイヤー2のOMPが100超過: $player2OMP');
     }
