@@ -58,6 +58,10 @@ class _RoomPageState extends State<RoomPage> {
     _initializeGameState();
     _fetchPlayerDeck();
     _listenToGameState();
+
+    Future.delayed(const Duration(milliseconds: 500), () {
+      _showPlayerInfoDialog();
+    });
   }
 
   @override
@@ -670,7 +674,7 @@ class _RoomPageState extends State<RoomPage> {
                 player1Card['type'] as String? ?? '',
                 player1Card['power'] as int? ?? 0,
                 player1FinalPower,
-                '先攻',
+                'プレイヤー1 ${isPlayer1 ? "(あなた)" : "(相手)"}',
               ),
 
               const SizedBox(height: 16),
@@ -683,25 +687,30 @@ class _RoomPageState extends State<RoomPage> {
                 player2Card['type'] as String? ?? '',
                 player2Card['power'] as int? ?? 0,
                 player2FinalPower,
-                '後攻',
+                'プレイヤー2 ${!isPlayer1 ? "(あなた)" : "(相手)"}',
               ),
 
               const SizedBox(height: 24),
 
-              // 結果表示
+              // 結果表示（よりわかりやすく表示）
               Container(
                 padding: const EdgeInsets.all(12),
                 decoration: BoxDecoration(
                   color:
                       result.contains('1')
-                          ? Colors.blue[100]
+                          ? (isPlayer1 ? Colors.green[100] : Colors.red[100])
                           : result.contains('2')
-                          ? Colors.red[100]
+                          ? (!isPlayer1 ? Colors.green[100] : Colors.red[100])
                           : Colors.grey[100],
                   borderRadius: BorderRadius.circular(8),
                 ),
                 child: Text(
-                  result,
+                  // 結果をより直感的に表示
+                  result.contains('1')
+                      ? (isPlayer1 ? 'あなたの勝ち！' : '相手の勝ち')
+                      : result.contains('2')
+                      ? (!isPlayer1 ? 'あなたの勝ち！' : '相手の勝ち')
+                      : '引き分け',
                   style: const TextStyle(
                     fontWeight: FontWeight.bold,
                     fontSize: 18,
@@ -916,6 +925,57 @@ class _RoomPageState extends State<RoomPage> {
     }
   }
 
+  void _showPlayerInfoDialog() {
+    // マッチング後、最初のターン前にプレイヤー情報を表示
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('対戦情報'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                Icons.person,
+                size: 48,
+                color: isPlayer1 ? Colors.blue : Colors.red,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'あなたは ${isPlayer1 ? "プレイヤー1" : "プレイヤー2"} です',
+                style: TextStyle(
+                  fontSize: 18,
+                  fontWeight: FontWeight.bold,
+                  color: isPlayer1 ? Colors.blue : Colors.red,
+                ),
+              ),
+              const SizedBox(height: 8),
+              Text(
+                isPlayer1 ? '先攻プレイヤーとして対戦します' : '後攻プレイヤーとして対戦します',
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              const Text(
+                '勝利条件: 3ポイント先取\nOMPが100を超えると敗北します',
+                textAlign: TextAlign.center,
+                style: TextStyle(color: Colors.grey),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();
+              },
+              child: const Text('了解'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return WillPopScope(
@@ -956,10 +1016,11 @@ class _RoomPageState extends State<RoomPage> {
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
                       _buildPlayerInfo(
-                        isPlayer1 ? 'あなた' : '相手',
+                        isPlayer1 ? 'プレイヤー1' : 'プレイヤー2',
                         isPlayer1 ? player1Points : player2Points,
                         isPlayer1 ? player1OMP : player2OMP,
                         isPlayer1 ? Colors.blue : Colors.red,
+                        true, // 自分のプレイヤー情報
                       ),
                       Container(
                         padding: const EdgeInsets.all(8),
@@ -988,10 +1049,11 @@ class _RoomPageState extends State<RoomPage> {
                         ),
                       ),
                       _buildPlayerInfo(
-                        isPlayer1 ? '相手' : 'あなた',
+                        isPlayer1 ? 'プレイヤー2' : 'プレイヤー1',
                         isPlayer1 ? player2Points : player1Points,
                         isPlayer1 ? player2OMP : player1OMP,
                         isPlayer1 ? Colors.red : Colors.blue,
+                        false, // 相手のプレイヤー情報
                       ),
                     ],
                   ),
@@ -1133,7 +1195,13 @@ class _RoomPageState extends State<RoomPage> {
     );
   }
 
-  Widget _buildPlayerInfo(String title, int points, int omp, Color color) {
+  Widget _buildPlayerInfo(
+    String title,
+    int points,
+    int omp,
+    Color color,
+    bool isCurrentPlayer,
+  ) {
     return Container(
       padding: const EdgeInsets.all(8),
       decoration: BoxDecoration(
@@ -1146,12 +1214,18 @@ class _RoomPageState extends State<RoomPage> {
             offset: const Offset(0, 2),
           ),
         ],
+        border: isCurrentPlayer ? Border.all(color: color, width: 2) : null,
       ),
       child: Column(
         children: [
+          // プレイヤー1/2と自分/相手の両方を表示
           Text(
             title,
             style: TextStyle(color: color, fontWeight: FontWeight.bold),
+          ),
+          Text(
+            isCurrentPlayer ? '(あなた)' : '(相手)',
+            style: TextStyle(fontSize: 12, color: Colors.grey),
           ),
           const SizedBox(height: 4),
           Row(
