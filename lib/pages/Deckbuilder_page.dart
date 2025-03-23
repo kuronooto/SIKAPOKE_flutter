@@ -1,12 +1,17 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import '../widgets/common/card.dart';
 
 class DeckBuilderPage extends StatefulWidget {
   final String userId;
   final String deckId;
   final List<Map<String, dynamic>> ownedCards;
 
-  DeckBuilderPage({required this.userId, required this.deckId, required this.ownedCards});
+  DeckBuilderPage({
+    required this.userId,
+    required this.deckId,
+    required this.ownedCards,
+  });
 
   @override
   _DeckBuilderPageState createState() => _DeckBuilderPageState();
@@ -54,16 +59,17 @@ class _DeckBuilderPageState extends State<DeckBuilderPage> {
   /// Firestoreにデッキ情報を保存
   Future<void> saveDeck() async {
     if (selectedCardIds.length == maxDeckSize) {
-      List<int> selectedCardIdsAsInt = selectedCardIds.map((id) => int.parse(id)).toList(); //int型に変換
+      List<int> selectedCardIdsAsInt =
+          selectedCardIds.map((id) => int.parse(id)).toList(); //int型に変換
 
       await FirebaseFirestore.instance
           .collection('users')
           .doc(widget.userId)
           .update({'deck': selectedCardIdsAsInt});
-          
-      ScaffoldMessenger.of(context).showSnackBar(
-        const SnackBar(content: Text('デッキが保存されました')),
-      );
+
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('デッキが保存されました')));
 
       Navigator.pop(context);
     }
@@ -79,19 +85,20 @@ class _DeckBuilderPageState extends State<DeckBuilderPage> {
         children: [
           const Text("選択中のカード"),
           Wrap(
-            children: selectedCardIds.map((cardId) {
-              final card = widget.ownedCards.firstWhere(
-                (c) => c['cardId'].toString() == cardId, // `id` → `cardId`
-                orElse: () => {},
-              );
-              return card.isNotEmpty
-                  ? Chip(
-                      label: Text(card['name']),
-                      deleteIcon: const Icon(Icons.close),
-                      onDeleted: () => toggleCardSelection(cardId),
-                    )
-                  : const SizedBox.shrink();
-            }).toList(),
+            children:
+                selectedCardIds.map((cardId) {
+                  final card = widget.ownedCards.firstWhere(
+                    (c) => c['cardId'].toString() == cardId, // `id` → `cardId`
+                    orElse: () => {},
+                  );
+                  return card.isNotEmpty
+                      ? Chip(
+                        label: Text(card['name']),
+                        deleteIcon: const Icon(Icons.close),
+                        onDeleted: () => toggleCardSelection(cardId),
+                      )
+                      : const SizedBox.shrink();
+                }).toList(),
           ),
           const Divider(),
           const Text("所持カード"),
@@ -104,25 +111,23 @@ class _DeckBuilderPageState extends State<DeckBuilderPage> {
               itemCount: widget.ownedCards.length, // 明示的に設定
               itemBuilder: (context, index) {
                 final card = widget.ownedCards[index];
-                final cardId = card['cardId']?.toString() ?? ''; // `id` → `cardId`
-                if (cardId.isEmpty) return const SizedBox.shrink(); // 無効なカードをスキップ
+                final cardId = card['cardId']?.toString() ?? '';
+                if (cardId.isEmpty)
+                  return const SizedBox.shrink(); // 無効なカードをスキップ
 
                 final isSelected = selectedCardIds.contains(cardId);
-                return GestureDetector(
+
+                return CommonCardWidget(
+                  cardId: cardId,
+                  name: card['name'] ?? '',
+                  type: card['type'] ?? '',
+                  power: card['power'] ?? 0,
+                  rank: card['rank'] ?? 'D',
+                  isSelected: isSelected,
                   onTap: () {
                     print("カードタップ: $cardId");
                     toggleCardSelection(cardId);
                   },
-                  child: Card(
-                    color: isSelected ? Colors.blueAccent : Colors.white,
-                    child: Column(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        Text(card['name'], style: const TextStyle(fontSize: 16)),
-                        if (isSelected) const Icon(Icons.check_circle, color: Colors.green),
-                      ],
-                    ),
-                  ),
                 );
               },
             ),

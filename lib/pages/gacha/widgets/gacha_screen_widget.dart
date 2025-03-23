@@ -3,7 +3,7 @@ import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/gacha_view_model.dart';
 import '../../../models/pack_model.dart';
-import '../../shared/app_theme.dart' as theme;
+import '../shared/app_theme.dart' as theme;
 import 'pack_selection_widget.dart';
 import 'pack_opening_animation.dart';
 import 'result_dialog.dart';

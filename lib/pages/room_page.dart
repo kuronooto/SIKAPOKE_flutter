@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import '../widgets/common/card.dart';
 
 class RoomPage extends StatefulWidget {
   final String roomId;
@@ -1192,81 +1193,27 @@ class _RoomPageState extends State<RoomPage> {
     final cardName = card['name'] as String? ?? 'カード';
     final cardPower = card['power'] as int? ?? 0;
     final cardType = card['type'] as String? ?? '';
-    final cardRank = card['rank'] as String? ?? '';
+    final cardRank = card['rank'] as String? ?? 'D';
+    final cardId = card['id'].toString();
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(8),
-        side: BorderSide(color: _getTypeColor(cardType), width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          children: [
-            Text(
-              label,
-              style: const TextStyle(fontSize: 12, color: Colors.grey),
-            ),
-            const SizedBox(height: 8),
-            Text(
-              cardName,
-              style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold),
-              textAlign: TextAlign.center,
-              maxLines: 2,
-              overflow: TextOverflow.ellipsis,
-            ),
-            const SizedBox(height: 8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.center,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getTypeColor(cardType),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    cardType,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 12,
-                    ),
-                  ),
-                ),
-                const SizedBox(width: 4),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 2,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'ランク$cardRank',
-                    style: TextStyle(color: Colors.grey[800], fontSize: 12),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 8),
-            Text(
-              'パワー: $cardPower',
-              style: const TextStyle(
-                fontSize: 16,
-                fontWeight: FontWeight.bold,
-                color: Colors.red,
-              ),
-            ),
-          ],
+    return Column(
+      children: [
+        Text(label, style: const TextStyle(fontSize: 12, color: Colors.grey)),
+        const SizedBox(height: 8),
+        Container(
+          width: 100, // 幅を固定して小さくする
+          height: 150, // 高さも調整
+          child: CommonCardWidget(
+            cardId: cardId,
+            name: cardName,
+            type: cardType,
+            power: cardPower,
+            rank: cardRank,
+            isSelected: true,
+            showSparkles: false, // バトル中はエフェクトを減らす
+          ),
         ),
-      ),
+      ],
     );
   }
 
@@ -1278,92 +1225,25 @@ class _RoomPageState extends State<RoomPage> {
     final cardName = card['name'] as String? ?? 'カード';
     final cardPower = card['power'] as int? ?? 0;
     final cardType = card['type'] as String? ?? '';
+    final cardRank = card['rank'] as String? ?? 'D'; // rankを追加
+    final cardId = card['id'].toString();
 
     return InkWell(
       onTap:
           isWaitingForOpponent || isTurnProcessing || selectedCardId != null
               ? null
               : onSelect,
-      child: Card(
-        elevation: isSelected ? 8 : 2,
-        color: isSelected ? Colors.blue[50] : Colors.white,
-        shape: RoundedRectangleBorder(
-          borderRadius: BorderRadius.circular(8),
-          side: BorderSide(
-            color: isSelected ? Colors.blue : Colors.grey.withOpacity(0.5),
-            width: isSelected ? 2 : 1,
-          ),
-        ),
-        child: Padding(
-          padding: const EdgeInsets.all(8),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: [
-              Row(
-                mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                children: [
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 6,
-                      vertical: 2,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getTypeColor(cardType),
-                      borderRadius: BorderRadius.circular(4),
-                    ),
-                    child: Text(
-                      cardType,
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 10,
-                      ),
-                    ),
-                  ),
-                  Text(
-                    'P$cardPower',
-                    style: const TextStyle(
-                      fontWeight: FontWeight.bold,
-                      color: Colors.red,
-                    ),
-                  ),
-                ],
-              ),
-              const SizedBox(height: 4),
-              Expanded(
-                child: Text(
-                  cardName,
-                  style: const TextStyle(
-                    fontSize: 12,
-                    fontWeight: FontWeight.bold,
-                  ),
-                  maxLines: 3,
-                  overflow: TextOverflow.ellipsis,
-                ),
-              ),
-              if (isSelected) ...[
-                const SizedBox(height: 4),
-                Container(
-                  width: double.infinity,
-                  padding: const EdgeInsets.symmetric(vertical: 2),
-                  decoration: BoxDecoration(
-                    color: Colors.blue,
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: const Text(
-                    '選択中',
-                    style: TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                      fontSize: 10,
-                    ),
-                    textAlign: TextAlign.center,
-                  ),
-                ),
-              ],
-            ],
-          ),
-        ),
+      child: CommonCardWidget(
+        cardId: cardId,
+        name: cardName,
+        type: cardType,
+        power: cardPower,
+        rank: cardRank,
+        isSelected: isSelected,
+        onTap:
+            isWaitingForOpponent || isTurnProcessing || selectedCardId != null
+                ? null
+                : onSelect,
       ),
     );
   }

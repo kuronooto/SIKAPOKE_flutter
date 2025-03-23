@@ -3,6 +3,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../viewmodels/battle_view_model.dart';
 import 'room_page.dart';
+import '../widgets/common/card.dart';
 
 class BattlePage extends StatefulWidget {
   const BattlePage({super.key});
@@ -413,96 +414,21 @@ class _BattlePageState extends State<BattlePage> {
     );
   }
 
-  // カードウィジェットを構築
   Widget _buildCardItem(Map<String, dynamic> card) {
-    final cardName = card['name'] as String;
-    final cardPower = card['power'] as int;
-    final cardType = card['type'] as String;
-    final cardRank = card['rank'] as String;
+    final String name = card['name'] as String;
+    final int power = card['power'] as int;
+    final String type = card['type'] as String;
+    final String rank = card['rank'] as String;
+    final int cardId = card['id'] as int;
 
-    return Card(
-      elevation: 4,
-      shape: RoundedRectangleBorder(
-        borderRadius: BorderRadius.circular(12),
-        side: BorderSide(color: _getTypeColor(cardType), width: 2),
-      ),
-      child: Padding(
-        padding: const EdgeInsets.all(12),
-        child: Column(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: [
-            // カードのタイプと強さ表示
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: _getTypeColor(cardType),
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    cardType,
-                    style: const TextStyle(
-                      color: Colors.white,
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: 8,
-                    vertical: 4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: Colors.grey[200],
-                    borderRadius: BorderRadius.circular(4),
-                  ),
-                  child: Text(
-                    'ランク $cardRank',
-                    style: TextStyle(
-                      color: Colors.grey[800],
-                      fontWeight: FontWeight.bold,
-                    ),
-                  ),
-                ),
-              ],
-            ),
-            const SizedBox(height: 12),
-            // カード名
-            Expanded(
-              child: Text(
-                cardName,
-                style: const TextStyle(
-                  fontSize: 14,
-                  fontWeight: FontWeight.bold,
-                ),
-                maxLines: 3,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            const SizedBox(height: 12),
-            // パワー表示
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: [
-                const Text('パワー: ', style: TextStyle(fontSize: 14)),
-                Text(
-                  '$cardPower',
-                  style: const TextStyle(
-                    fontSize: 18,
-                    fontWeight: FontWeight.bold,
-                    color: Colors.red,
-                  ),
-                ),
-              ],
-            ),
-          ],
-        ),
-      ),
+    return CommonCardWidget(
+      cardId: cardId.toString(),
+      name: name,
+      type: type,
+      power: power,
+      rank: rank,
+      isSelected: false,
+      onTap: null, // バトル画面では選択できないので null
     );
   }
 }
