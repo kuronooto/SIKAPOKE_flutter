@@ -33,12 +33,12 @@ class AuthCheck extends StatelessWidget {
     return FutureBuilder<User?>(
       future: _checkLoginStatus(),
       builder: (context, snapshot) {
+        //return DataUploadPage();
         if (snapshot.connectionState == ConnectionState.waiting) {
           return Scaffold(body: Center(child: CircularProgressIndicator()));
         } else if (snapshot.hasData) {
           return RootPage();
         } else {
-          //return DataUploadPage();
           return LoginPage();
         }
       },

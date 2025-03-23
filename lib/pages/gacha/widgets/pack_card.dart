@@ -86,7 +86,7 @@ class _PackCardState extends State<PackCard> {
           width: 150,
           height: 210,
           decoration: BoxDecoration(
-            // ポケモンカードのような洗練されたデザイン
+            // 統一されたデザインベース
             gradient: LinearGradient(
               begin: Alignment.topLeft,
               end: Alignment.bottomRight,
@@ -189,7 +189,7 @@ class _PackCardState extends State<PackCard> {
                     height: 40,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: Colors.deepPurple.shade800,
+                      color: widget.packData.color.withOpacity(0.8),
                       borderRadius: const BorderRadius.only(
                         topLeft: Radius.circular(15),
                         topRight: Radius.circular(15),
@@ -206,44 +206,20 @@ class _PackCardState extends State<PackCard> {
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
                         const Text(
-                          'POCKET',
+                          'SIKAPOKE',
                           style: TextStyle(
                             color: Colors.white,
                             fontWeight: FontWeight.bold,
                             fontSize: 12,
                           ),
                         ),
-                        Container(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: 6,
-                            vertical: 2,
-                          ),
-                          decoration: BoxDecoration(
-                            color: Colors.black,
-                            borderRadius: BorderRadius.circular(5),
-                            boxShadow: [
-                              BoxShadow(
-                                color: Colors.black.withOpacity(0.3),
-                                offset: const Offset(0, 1),
-                                blurRadius: 1,
-                              ),
-                            ],
-                          ),
-                          child: Text(
-                            _getRarityLabel(widget.packData.rarityLevel),
-                            style: const TextStyle(
-                              color: Colors.white,
-                              fontWeight: FontWeight.bold,
-                              fontSize: 10,
-                            ),
-                          ),
-                        ),
+                        Icon(Icons.auto_awesome, color: Colors.white, size: 16),
                       ],
                     ),
                   ),
                 ),
 
-                // 中央のモンスターボールアイコン部分
+                // 中央のアイコン部分 - 幾何学的なデザイン
                 Positioned(
                   top: 40,
                   left: 0,
@@ -255,7 +231,7 @@ class _PackCardState extends State<PackCard> {
                       height: 80,
                       decoration: BoxDecoration(
                         color: Colors.white,
-                        shape: BoxShape.circle,
+                        borderRadius: BorderRadius.circular(4),
                         boxShadow: [
                           BoxShadow(
                             color: Colors.black.withOpacity(0.3),
@@ -263,99 +239,19 @@ class _PackCardState extends State<PackCard> {
                             spreadRadius: 1,
                             offset: const Offset(2, 2),
                           ),
-                          BoxShadow(
-                            color: Colors.white.withOpacity(0.5),
-                            blurRadius: 5,
-                            spreadRadius: 0,
-                            offset: const Offset(-1, -1),
-                          ),
                         ],
                       ),
-                      child: Stack(
-                        children: [
-                          // モンスターボール上部（白）
-                          Container(
-                            width: 80,
-                            height: 40,
-                            decoration: const BoxDecoration(
-                              color: Colors.white,
-                              borderRadius: BorderRadius.only(
-                                topLeft: Radius.circular(40),
-                                topRight: Radius.circular(40),
-                              ),
-                            ),
-                          ),
-                          // モンスターボール下部（色付き）
-                          Positioned(
-                            bottom: 0,
-                            child: Container(
-                              width: 80,
-                              height: 40,
-                              decoration: BoxDecoration(
-                                color: widget.packData.color.withOpacity(0.7),
-                                borderRadius: const BorderRadius.only(
-                                  bottomLeft: Radius.circular(40),
-                                  bottomRight: Radius.circular(40),
-                                ),
-                              ),
-                            ),
-                          ),
-                          // モンスターボール中央の線
-                          Positioned(
-                            top: 35,
-                            child: Container(
-                              width: 80,
-                              height: 10,
-                              color: Colors.black,
-                            ),
-                          ),
-                          // モンスターボール中央のボタン（3D効果付き）
-                          Center(
-                            child: Container(
-                              width: 25,
-                              height: 25,
-                              decoration: BoxDecoration(
-                                color: Colors.white,
-                                shape: BoxShape.circle,
-                                border: Border.all(
-                                  color: Colors.black,
-                                  width: 2,
-                                ),
-                                boxShadow: [
-                                  BoxShadow(
-                                    color: Colors.black.withOpacity(0.3),
-                                    blurRadius: 2,
-                                    spreadRadius: 0,
-                                    offset: const Offset(1, 1),
-                                  ),
-                                ],
-                              ),
-                              child: Center(
-                                child: Container(
-                                  width: 12,
-                                  height: 12,
-                                  decoration: BoxDecoration(
-                                    color: Colors.white,
-                                    shape: BoxShape.circle,
-                                    boxShadow: [
-                                      BoxShadow(
-                                        color: Colors.black.withOpacity(0.2),
-                                        blurRadius: 1,
-                                        spreadRadius: 0,
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                              ),
-                            ),
-                          ),
-                        ],
+                      child: CustomPaint(
+                        painter: GeometricPatternPainter(
+                          baseColor: widget.packData.color,
+                          rarityLevel: widget.packData.rarityLevel,
+                        ),
                       ),
                     ),
                   ),
                 ),
 
-                // 下部のラベル
+                // 下部のラベル - パック名
                 Positioned(
                   bottom: 0,
                   left: 0,
@@ -364,7 +260,7 @@ class _PackCardState extends State<PackCard> {
                     height: 40,
                     padding: const EdgeInsets.symmetric(horizontal: 10),
                     decoration: BoxDecoration(
-                      color: Colors.deepPurple.shade800,
+                      color: widget.packData.color.withOpacity(0.8),
                       borderRadius: const BorderRadius.only(
                         bottomLeft: Radius.circular(15),
                         bottomRight: Radius.circular(15),
@@ -455,23 +351,6 @@ class _PackCardState extends State<PackCard> {
       );
     });
   }
-
-  String _getRarityLabel(int rarityLevel) {
-    switch (rarityLevel) {
-      case 1:
-        return 'N';
-      case 2:
-        return 'R';
-      case 3:
-        return 'SR';
-      case 4:
-        return 'UR';
-      case 5:
-        return 'LR';
-      default:
-        return 'N';
-    }
-  }
 }
 
 // カードの3Dグラデーション効果を描画するカスタムペインター
@@ -517,6 +396,176 @@ class CardGradientPainter extends CustomPainter {
     canvas.drawRect(
       highlightRect,
       Paint()..shader = highlightGradient.createShader(highlightRect),
+    );
+  }
+
+  @override
+  bool shouldRepaint(covariant CustomPainter oldDelegate) => false;
+}
+
+// 幾何学的パターンを描画するカスタムペインター
+class GeometricPatternPainter extends CustomPainter {
+  final Color baseColor;
+  final int rarityLevel;
+
+  GeometricPatternPainter({required this.baseColor, required this.rarityLevel});
+
+  @override
+  void paint(Canvas canvas, Size size) {
+    final paint =
+        Paint()
+          ..color = baseColor
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 1.5;
+
+    final fillPaint =
+        Paint()
+          ..color = baseColor.withOpacity(0.2)
+          ..style = PaintingStyle.fill;
+
+    final centerX = size.width / 2;
+    final centerY = size.height / 2;
+
+    // レベルに応じたパターンの複雑さ
+    final complexity = rarityLevel;
+
+    // 幾何学的なパターンを描画
+
+    // 1. 中央の形
+    switch (complexity) {
+      case 1: // シンプルな四角形
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.5,
+            height: size.height * 0.5,
+          ),
+          paint,
+        );
+        break;
+
+      case 2: // 二重の四角形
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.6,
+            height: size.height * 0.6,
+          ),
+          paint,
+        );
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.4,
+            height: size.height * 0.4,
+          ),
+          paint,
+        );
+        break;
+
+      case 3: // 三角形と四角形
+        final path = Path();
+        path.moveTo(centerX, centerY - size.height * 0.3);
+        path.lineTo(centerX + size.width * 0.3, centerY + size.height * 0.3);
+        path.lineTo(centerX - size.width * 0.3, centerY + size.height * 0.3);
+        path.close();
+        canvas.drawPath(path, paint);
+
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.3,
+            height: size.height * 0.3,
+          ),
+          paint,
+        );
+        break;
+
+      case 4: // 複雑な六角形
+        final radius = size.width * 0.35;
+        final path = Path();
+        for (int i = 0; i < 6; i++) {
+          final angle = i * math.pi / 3;
+          final x = centerX + radius * math.cos(angle);
+          final y = centerY + radius * math.sin(angle);
+
+          if (i == 0) {
+            path.moveTo(x, y);
+          } else {
+            path.lineTo(x, y);
+          }
+        }
+        path.close();
+        canvas.drawPath(path, paint);
+
+        // 内側の三角形
+        final innerPath = Path();
+        for (int i = 0; i < 3; i++) {
+          final angle = i * 2 * math.pi / 3;
+          final x = centerX + radius * 0.5 * math.cos(angle);
+          final y = centerY + radius * 0.5 * math.sin(angle);
+
+          if (i == 0) {
+            innerPath.moveTo(x, y);
+          } else {
+            innerPath.lineTo(x, y);
+          }
+        }
+        innerPath.close();
+        canvas.drawPath(innerPath, paint);
+        break;
+
+      default: // デフォルトは単純な四角形
+        canvas.drawRect(
+          Rect.fromCenter(
+            center: Offset(centerX, centerY),
+            width: size.width * 0.5,
+            height: size.height * 0.5,
+          ),
+          paint,
+        );
+    }
+
+    // 2. 装飾パターン
+    // レア度に応じて細かい装飾を追加
+    for (int i = 0; i < complexity; i++) {
+      // 周辺の円
+      final radius = size.width * (0.15 + i * 0.05);
+      canvas.drawCircle(
+        Offset(centerX, centerY),
+        radius,
+        Paint()
+          ..color = baseColor.withOpacity(0.3)
+          ..style = PaintingStyle.stroke
+          ..strokeWidth = 0.8,
+      );
+    }
+
+    // 3. 対角線
+    if (complexity >= 3) {
+      canvas.drawLine(
+        Offset(size.width * 0.2, size.height * 0.2),
+        Offset(size.width * 0.8, size.height * 0.8),
+        Paint()
+          ..color = baseColor.withOpacity(0.4)
+          ..strokeWidth = 1.0,
+      );
+      canvas.drawLine(
+        Offset(size.width * 0.8, size.height * 0.2),
+        Offset(size.width * 0.2, size.height * 0.8),
+        Paint()
+          ..color = baseColor.withOpacity(0.4)
+          ..strokeWidth = 1.0,
+      );
+    }
+
+    // 4. 中央の点
+    canvas.drawCircle(
+      Offset(centerX, centerY),
+      3.0,
+      Paint()
+        ..color = baseColor
+        ..style = PaintingStyle.fill,
     );
   }
 

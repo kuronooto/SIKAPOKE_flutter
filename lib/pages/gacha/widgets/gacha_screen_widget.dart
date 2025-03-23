@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:provider/provider.dart';
 import '../../../viewmodels/gacha_view_model.dart';
+import '../../../models/pack_model.dart';
 import '../../shared/app_theme.dart' as theme;
 import 'pack_selection_widget.dart';
 import 'pack_opening_animation.dart';
@@ -235,53 +236,70 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      // グラデーションを使用するが、薄い色にする
-      decoration: BoxDecoration(
-        color: Colors.white, // 白ベースの背景
-        gradient: LinearGradient(
-          begin: Alignment.topCenter,
-          end: Alignment.bottomCenter,
-          colors: [
-            Colors.blue.shade50, // 非常に薄い青
-            Colors.purple.shade50, // 非常に薄い紫
-          ],
-          stops: const [0.0, 1.0],
-        ),
-      ),
-      child: SafeArea(
-        child: Column(
-          children: [
-            _buildHeader(),
-            const SizedBox(height: 20),
-            Expanded(
-              child: Consumer<GachaViewModel>(
-                builder: (context, viewModel, child) {
-                  return viewModel.isOpening
-                      ? PackOpeningAnimation(
-                        viewModel: viewModel,
-                        animation: _openingAnimation,
-                        onPackSwiped: _onPackSwiped,
-                        playPackOpenSound: _soundService.playPackOpenSound,
-                      )
-                      : PackSelectionWidget(
-                        viewModel: viewModel,
-                        onPackSelected: _onPackSelected,
-                        playSelectSound: _soundService.playSelectSound,
-                      );
-                },
-              ),
+    return Consumer<GachaViewModel>(
+      builder: (context, viewModel, child) {
+        // 現在選択されているパックのタイプを取得
+        final selectedPackTypeName =
+            viewModel.packs.isNotEmpty &&
+                    viewModel.selectedPackIndex >= 0 &&
+                    viewModel.selectedPackIndex < viewModel.packs.length
+                ? viewModel.packs[viewModel.selectedPackIndex].name
+                : "資格パック"; // デフォルト名
+
+        return Container(
+          // グラデーションを使用するが、薄い色にする
+          decoration: BoxDecoration(
+            color: Colors.white, // 白ベースの背景
+            gradient: LinearGradient(
+              begin: Alignment.topCenter,
+              end: Alignment.bottomCenter,
+              colors: [
+                Colors.blue.shade50, // 非常に薄い青
+                Colors.purple.shade50, // 非常に薄い紫
+              ],
+              stops: const [0.0, 1.0],
             ),
-            const SizedBox(height: 20),
-            _buildBottomButton(),
-            const SizedBox(height: 40),
-          ],
-        ),
-      ),
+          ),
+          child: SafeArea(
+            child: Column(
+              children: [
+                _buildHeader(selectedPackTypeName),
+                const SizedBox(height: 20),
+                Expanded(
+                  child: Consumer<GachaViewModel>(
+                    builder: (context, viewModel, child) {
+                      // パックが空の場合、デフォルトパックを生成
+                      if (viewModel.packs.isEmpty) {
+                        viewModel.selectPackType(0); // デフォルトパック（最強の資格）を生成
+                      }
+
+                      return viewModel.isOpening
+                          ? PackOpeningAnimation(
+                            viewModel: viewModel,
+                            animation: _openingAnimation,
+                            onPackSwiped: _onPackSwiped,
+                            playPackOpenSound: _soundService.playPackOpenSound,
+                          )
+                          : PackSelectionWidget(
+                            viewModel: viewModel,
+                            onPackSelected: _onPackSelected,
+                            playSelectSound: _soundService.playSelectSound,
+                          );
+                    },
+                  ),
+                ),
+                const SizedBox(height: 20),
+                _buildBottomButton(),
+                const SizedBox(height: 40),
+              ],
+            ),
+          ),
+        );
+      },
     );
   }
 
-  Widget _buildHeader() {
+  Widget _buildHeader(String packName) {
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16.0),
       child: Row(
@@ -299,9 +317,9 @@ class _GachaScreenWidgetState extends State<GachaScreenWidget>
               });
             },
           ),
-          const Text(
-            'ぽけぽけガチャ',
-            style: TextStyle(
+          Text(
+            packName, // 「ぽけぽけガチャ」の代わりに選択されたパック名を表示
+            style: const TextStyle(
               fontSize: 28,
               fontWeight: FontWeight.bold,
               color: Colors.deepPurple,

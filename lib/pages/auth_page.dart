@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_firestore/cloud_firestore.dart'; // Firestore をインポート
 import 'root_page.dart'; // 遷移先画面のインポート
 
 class LoginPage extends StatefulWidget {
@@ -143,10 +144,21 @@ class _LoginPageState extends State<LoginPage> {
         );
       } else {
         // アカウント登録処理
-        await FirebaseAuth.instance.createUserWithEmailAndPassword(
-          email: email,
-          password: password,
-        );
+        final userCredential = await FirebaseAuth.instance
+            .createUserWithEmailAndPassword(email: email, password: password);
+
+        // Firestore にユーザー情報を格納
+        final userId = userCredential.user?.uid;
+        if (userId != null) {
+          final userRef = FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId);
+
+          // 初期データを設定
+          await userRef.set({
+            'deck': [0, 0, 0, 0, 0], // 初期デッキはすべて 0
+          });
+        }
       }
 
       // 成功時: 画面遷移

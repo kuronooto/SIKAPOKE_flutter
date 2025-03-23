@@ -9,10 +9,26 @@ import 'widgets/gacha_screen_widget.dart';
 /// 主要な処理は各Widgetに委譲し、このクラスは
 /// 画面全体のコンテナとしての役割を果たします。
 class GachaScreen extends StatelessWidget {
-  const GachaScreen({Key? key}) : super(key: key);
+  final int? selectedPackTypeIndex; // 追加: 選択されたパックタイプのインデックス
+
+  const GachaScreen({Key? key, this.selectedPackTypeIndex}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
+    // ViewModelを取得
+    GachaViewModel viewModel = Provider.of<GachaViewModel>(
+      context,
+      listen: false,
+    );
+
+    // もし外部からパックタイプインデックスが指定されていて、現在選択中のタイプと異なる場合は更新
+    if (selectedPackTypeIndex != null &&
+        selectedPackTypeIndex != viewModel.selectedPackTypeIndex) {
+      // パックタイプを再設定
+      // print('GachaScreen: パックタイプを${selectedPackTypeIndex}に設定します');
+      viewModel.selectPackType(selectedPackTypeIndex!);
+    }
+
     return Scaffold(
       appBar: AppBar(
         title: const Text('カードガチャ'),
@@ -20,10 +36,7 @@ class GachaScreen extends StatelessWidget {
         centerTitle: true,
         elevation: 0,
       ),
-      body: ChangeNotifierProvider(
-        create: (context) => GachaViewModel(),
-        child: const GachaScreenWidget(),
-      ),
+      body: GachaScreenWidget(), // パックタイプが設定されたViewModelを使用
     );
   }
 }
