@@ -4,7 +4,6 @@ import 'dart:math' as math;
 import 'package:sikapoke_flutter/pages/gacha/widgets/gacha_utils.dart';
 import 'Deckbuilder_page.dart';
 
-
 class CardPage extends StatelessWidget {
   final String userId;
 
@@ -227,8 +226,18 @@ class CardPage extends StatelessWidget {
         ),
       ),
       floatingActionButton: FloatingActionButton(
-        onPressed: () {
-          Navigator.pushNamed(context, '/deck'); //デッキ編成画面に推移
+        onPressed: () async {
+          // 所持カード情報を取得
+          final ownedCards = await getOwnedCardDetails();
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                      DeckBuilderPage(userId: userId, ownedCards: ownedCards),
+            ),
+          );
         },
         backgroundColor: Colors.deepPurple,
         child: const Icon(Icons.dashboard),
