@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import '../viewmodels/battle_view_model.dart';
 import 'room_page.dart';
 
@@ -12,144 +14,211 @@ class BattlePage extends StatefulWidget {
 class _BattlePageState extends State<BattlePage> {
   final BattleViewModel _viewModel = BattleViewModel();
   String infoText = '';
-  bool _isLoading = false; // ボタンの状態を管理
-  String? _currentRoomId; // 現在のルームIDを保持
-  bool _isMatched = false; // マッチング成功状態を管理
+  bool _isLoading = false;
+  String? _currentRoomId;
+  bool _isMatched = false;
 
-  Future<void> _handleBattleStart() async {
+  // Player deck information
+  List<int> _playerDeck = [];
+  List<Map<String, dynamic>> _deckCards = [];
+  bool _isDeckLoaded = false;
+
+  @override
+  void initState() {
+    super.initState();
+    _loadPlayerDeck();
+  }
+
+  // Load the player's deck from Firestore
+  Future<void> _loadPlayerDeck() async {
     setState(() {
-      _isLoading = true; // ボタンを無効化
-      _isMatched = false; // 初期化
+      _isLoading = true;
     });
 
-    // ダイアログの状態を更新するための変数
-    String? dialogRoomId;
+    try {
+      final userId = FirebaseAuth.instance.currentUser?.uid;
+      if (userId == null) {
+        setState(() {
+          infoText = 'ログインしてください';
+          _isLoading = false;
+        });
+        return;
+      }
 
+      // Get the player's deck
+      final userDoc =
+          await FirebaseFirestore.instance
+              .collection('users')
+              .doc(userId)
+              .get();
+
+      if (userDoc.exists && userDoc.data()!.containsKey('deck')) {
+        _playerDeck = List<int>.from(userDoc.data()!['deck']);
+
+        // Load card data for each card in the deck
+        for (var cardId in _playerDeck) {
+          // Skip placeholder or invalid cards (cardId 0)
+          if (cardId > 0) {
+            final cardDoc =
+                await FirebaseFirestore.instance
+                    .collection('cards')
+                    .where('id', isEqualTo: cardId)
+                    .limit(1)
+                    .get();
+
+            if (cardDoc.docs.isNotEmpty) {
+              _deckCards.add(cardDoc.docs.first.data());
+            }
+          }
+        }
+
+        setState(() {
+          _isDeckLoaded = true;
+        });
+      }
+    } catch (e) {
+      setState(() {
+        infoText = 'デッキの読み込みエラー: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
+    }
+  }
+
+  Future<void> _handleBattleStart() async {
+    // デッキにカードがあるか確認
+    if (_playerDeck.isEmpty || _deckCards.isEmpty) {
+      setState(() {
+        infoText = 'デッキにカードがないため、バトルを開始できません';
+      });
+      return;
+    }
+
+    setState(() {
+      _isLoading = true;
+      _isMatched = false;
+      infoText = '';
+    });
+
+    // ダイアログとその状態変数
+    String? dialogRoomId;
+    String statusMessage = '対戦相手を探しています...';
+    bool showErrorCancel = false;
+
+    // マッチングダイアログを表示
     showDialog(
       context: context,
-      barrierDismissible: false, // ダイアログ外をタップしても閉じない
+      barrierDismissible: false,
       builder: (context) {
-        return WillPopScope(
-          onWillPop: () async => false, // 戻るボタンを無効化
-          child: StatefulBuilder(
-            builder: (context, setState) {
-              return AlertDialog(
-                title: const Text('マッチング中'),
-                content: Column(
-                  mainAxisSize: MainAxisSize.min,
-                  children: [
-                    if (!_isMatched) ...[
-                      const CircularProgressIndicator(), // 読み込みアニメーション
-                      const SizedBox(height: 20),
-                      const Text('対戦相手を探しています...'),
-                    ] else ...[
-                      const Icon(
-                        Icons.check_circle,
-                        color: Colors.green,
-                        size: 50,
-                      ),
-                      const SizedBox(height: 20),
-                      const Text(
-                        'マッチング成功！',
-                        style: TextStyle(
-                          fontSize: 18,
-                          fontWeight: FontWeight.bold,
-                        ),
-                      ),
-                    ],
-                    if (dialogRoomId != null) ...[
-                      const SizedBox(height: 10),
-                      Text(
-                        'ルームID: $dialogRoomId',
-                        style: const TextStyle(
-                          fontSize: 14,
-                          color: Colors.grey,
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-                actions: [
-                  if (!_isMatched)
-                    TextButton(
-                      onPressed: () {
-                        _cancelMatching(context);
-                      },
-                      child: const Text('マッチング中止'),
+        return StatefulBuilder(
+          builder: (dialogContext, setDialogState) {
+            return AlertDialog(
+              title: const Text('マッチング'),
+              content: Column(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  if (!_isMatched) ...[
+                    const CircularProgressIndicator(),
+                    const SizedBox(height: 20),
+                    Text(statusMessage),
+                  ] else ...[
+                    const Icon(
+                      Icons.check_circle,
+                      color: Colors.green,
+                      size: 50,
                     ),
+                    const SizedBox(height: 20),
+                    const Text(
+                      'マッチング成功！',
+                      style: TextStyle(
+                        fontSize: 18,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
+                  if (dialogRoomId != null) ...[
+                    const SizedBox(height: 10),
+                    Text(
+                      'Room ID: $dialogRoomId',
+                      style: const TextStyle(fontSize: 14, color: Colors.grey),
+                    ),
+                  ],
                 ],
-              );
-            },
-          ),
+              ),
+              actions: [
+                if (!_isMatched || showErrorCancel)
+                  TextButton(
+                    onPressed: () {
+                      _cancelMatching();
+                      Navigator.of(dialogContext).pop();
+                    },
+                    child: const Text('マッチング中止'),
+                  ),
+              ],
+            );
+          },
         );
       },
     );
 
-    final result = await _viewModel.handleBattleStart();
+    try {
+      // マッチング処理を開始
+      final result = await _viewModel.handleBattleStart();
 
-    // ダイアログの Room ID を更新
-    setState(() {
-      _currentRoomId = _viewModel.currentRoomId; // ルームIDを保持
-      dialogRoomId = _currentRoomId;
-    });
-
-    // 対戦相手が見つかるまでポーリング
-    bool isMatched = false;
-    int timeoutSeconds = 30; // タイムアウト秒数
-    int elapsedSeconds = 0;
-
-    while (elapsedSeconds < timeoutSeconds) {
-      if (_currentRoomId == null) {
-        break; // キャンセルされた場合
-      }
-
-      isMatched = await _viewModel.checkIfMatched(_currentRoomId!);
-      if (isMatched) {
-        // ダイアログの状態を更新
-        setState(() {
-          _isMatched = true; // マッチング成功状態を更新
-        });
-        break;
-      }
-
-      await Future.delayed(const Duration(seconds: 1)); // 1秒待機
-      elapsedSeconds++;
-    }
-
-    if (!isMatched && _currentRoomId != null) {
-      // タイムアウトした場合、ルームをキャンセル
-      await _viewModel.cancelMatching(_currentRoomId!);
-      if (mounted) {
-        setState(() {
-          infoText = 'マッチングタイムアウト。再度試してください。';
-          _isLoading = false;
-        });
-
-        if (Navigator.canPop(context)) {
-          Navigator.pop(context); // ダイアログを閉じる
-        }
-        return;
-      }
-    }
-
-    if (mounted) {
       setState(() {
-        infoText = result;
-        _isLoading = false; // 処理完了後にボタンを有効化
+        _currentRoomId = _viewModel.currentRoomId;
+        dialogRoomId = _currentRoomId;
       });
-    }
 
-    // マッチングが成功した場合
-    if (isMatched && _currentRoomId != null) {
-      await Future.delayed(const Duration(seconds: 1)); // 成功メッセージを表示する時間
-
-      if (mounted && Navigator.canPop(context)) {
-        Navigator.pop(context); // ダイアログを閉じる
+      // 実行結果から判断して適切なメッセージを設定
+      if (result.contains('新しいルームを作成しました')) {
+        statusMessage = '部屋を作成しました。対戦相手を待っています...';
+      } else if (result.contains('ルームに参加しました')) {
+        statusMessage = 'マッチングが成功しました！';
+        _isMatched = true;
+      } else {
+        statusMessage = result;
       }
 
-      // RoomPage に遷移
+      // ルームIDがあればポーリングを開始
+      if (_currentRoomId != null) {
+        // 最大30秒間ポーリング
+        bool matchingSuccess = false;
+        for (int i = 0; i < 30; i++) {
+          final isMatched = await _viewModel.checkIfMatched(_currentRoomId!);
+          if (isMatched) {
+            setState(() {
+              _isMatched = true;
+              statusMessage = 'マッチング成功！ゲーム画面に移動します...';
+            });
+            matchingSuccess = true;
+            break;
+          }
+          await Future.delayed(const Duration(seconds: 1));
+        }
+
+        // 30秒経過してもマッチングしなかった場合
+        if (!matchingSuccess) {
+          statusMessage = 'マッチングタイムアウト。しばらく経ってからもう一度お試しください。';
+          showErrorCancel = true;
+          setState(() {
+            infoText = 'マッチングタイムアウト';
+          });
+          return;
+        }
+      }
+
+      // 部屋データを取得してゲーム画面に遷移
       final roomData = await _viewModel.getRoomData(_currentRoomId!);
-      if (roomData != null && mounted) {
+      if (roomData != null) {
+        // ダイアログを閉じる
+        if (Navigator.canPop(context)) {
+          Navigator.pop(context);
+        }
+
+        // ゲーム画面に遷移
         Navigator.of(context).push(
           MaterialPageRoute(
             builder:
@@ -162,107 +231,276 @@ class _BattlePageState extends State<BattlePage> {
           ),
         );
       }
+    } catch (e) {
+      statusMessage = 'エラーが発生しました: $e';
+      showErrorCancel = true;
+      setState(() {
+        infoText = 'マッチングエラー: $e';
+      });
+    } finally {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
-  Future<void> _cancelMatching(BuildContext dialogContext) async {
+  Future<void> _cancelMatching() async {
     if (_currentRoomId != null) {
-      await _viewModel.cancelMatching(_currentRoomId!); // ViewModel を利用してルームを削除
-      _currentRoomId = null;
+      await _viewModel.cancelMatching(_currentRoomId!);
     }
-
-    if (Navigator.canPop(dialogContext)) {
-      Navigator.pop(dialogContext); // ダイアログを閉じる
+    if (Navigator.canPop(context)) {
+      Navigator.pop(context);
     }
+    setState(() {
+      _isLoading = false;
+      infoText = 'マッチングを中止しました';
+    });
+  }
 
-    if (mounted) {
-      setState(() {
-        _isLoading = false; // ボタンを再度有効化
-        infoText = 'マッチングを中止しました';
-      });
+  // カードの種類に応じた色を返す
+  Color _getTypeColor(String type) {
+    switch (type) {
+      case 'IT':
+        return Colors.blue;
+      case 'ビジネス':
+        return Colors.green;
+      case '語学':
+        return Colors.orange;
+      default:
+        return Colors.grey;
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    return AbsorbPointer(
-      absorbing: _isLoading, // マッチング中は他のUIを無効化
-      child: Scaffold(
-        appBar: AppBar(title: const Text('バトルモード'), centerTitle: true),
-        body: Center(
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              Image.asset(
-                'assets/battle_logo.png', // アセットに適切な画像を配置してください
-                width: 150,
-                height: 150,
-                errorBuilder: (context, error, stackTrace) {
-                  return const Icon(
-                    Icons.sports_kabaddi,
-                    size: 120,
-                    color: Colors.blue,
-                  );
-                },
-              ),
-              const SizedBox(height: 30),
-              const Text(
-                'オンライン対戦モード',
-                style: TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
-              ),
-              const SizedBox(height: 10),
-              const Padding(
-                padding: EdgeInsets.symmetric(horizontal: 40),
-                child: Text(
-                  'ランダムな相手とカードバトルを行います。3ポイント先取か、相手のOMPが100を超えると勝利です！',
-                  textAlign: TextAlign.center,
-                  style: TextStyle(fontSize: 14, color: Colors.grey),
-                ),
-              ),
-              const SizedBox(height: 40),
-              ElevatedButton(
-                onPressed: _isLoading ? null : _handleBattleStart,
-                style: ElevatedButton.styleFrom(
-                  backgroundColor: Colors.blue,
-                  foregroundColor: Colors.white,
-                  minimumSize: const Size(200, 50),
-                  textStyle: const TextStyle(fontSize: 18),
-                  shape: RoundedRectangleBorder(
-                    borderRadius: BorderRadius.circular(30),
-                  ),
-                ),
-                child:
-                    _isLoading
-                        ? const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            color: Colors.white,
-                            strokeWidth: 2,
+    return Scaffold(
+      appBar: AppBar(
+        title: const Text('バトル'),
+        backgroundColor: Colors.blueGrey[700],
+      ),
+      body:
+          _isLoading && !_isDeckLoaded
+              ? const Center(child: CircularProgressIndicator())
+              : Column(
+                children: [
+                  // 上部：バトル説明
+                  Container(
+                    padding: const EdgeInsets.all(16),
+                    color: Colors.blue[100],
+                    child: const Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'カードバトルルール',
+                          style: TextStyle(
+                            fontSize: 18,
+                            fontWeight: FontWeight.bold,
                           ),
-                        )
-                        : const Text('バトル開始'),
+                        ),
+                        SizedBox(height: 8),
+                        Text('1. 各ターンごとに1枚のカードを選択します'),
+                        Text('2. 3ポイント先取で勝利'),
+                        Text('3. OMP（オーバーマウント・ポイント）が100を超えると敗北'),
+                        Text('4. カード相性: IT > 語学 > ビジネス > IT'),
+                      ],
+                    ),
+                  ),
+
+                  // 中部：デッキカード表示
+                  Expanded(
+                    child:
+                        _deckCards.isEmpty
+                            ? Center(
+                              child: Column(
+                                mainAxisAlignment: MainAxisAlignment.center,
+                                children: [
+                                  const Icon(
+                                    Icons.warning,
+                                    size: 64,
+                                    color: Colors.orange,
+                                  ),
+                                  const SizedBox(height: 16),
+                                  const Text(
+                                    'デッキにカードがありません',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                  const SizedBox(height: 8),
+                                  const Text(
+                                    'カードページからデッキを設定してください',
+                                    style: TextStyle(color: Colors.grey),
+                                  ),
+                                  if (infoText.isNotEmpty) ...[
+                                    const SizedBox(height: 16),
+                                    Padding(
+                                      padding: const EdgeInsets.symmetric(
+                                        horizontal: 24,
+                                      ),
+                                      child: Text(
+                                        infoText,
+                                        style: const TextStyle(
+                                          color: Colors.red,
+                                        ),
+                                        textAlign: TextAlign.center,
+                                      ),
+                                    ),
+                                  ],
+                                ],
+                              ),
+                            )
+                            : Column(
+                              children: [
+                                const Padding(
+                                  padding: EdgeInsets.all(12),
+                                  child: Text(
+                                    'あなたのデッキ',
+                                    style: TextStyle(
+                                      fontSize: 18,
+                                      fontWeight: FontWeight.bold,
+                                    ),
+                                  ),
+                                ),
+                                Expanded(
+                                  child: GridView.builder(
+                                    padding: const EdgeInsets.all(12),
+                                    gridDelegate:
+                                        const SliverGridDelegateWithFixedCrossAxisCount(
+                                          crossAxisCount: 2,
+                                          childAspectRatio: 0.8,
+                                          crossAxisSpacing: 12,
+                                          mainAxisSpacing: 12,
+                                        ),
+                                    itemCount: _deckCards.length,
+                                    itemBuilder: (context, index) {
+                                      final card = _deckCards[index];
+                                      return _buildCardItem(card);
+                                    },
+                                  ),
+                                ),
+                              ],
+                            ),
+                  ),
+
+                  // 下部：バトル開始ボタン
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(16),
+                    child: ElevatedButton(
+                      onPressed:
+                          _deckCards.isEmpty || _isLoading
+                              ? null
+                              : _handleBattleStart,
+                      style: ElevatedButton.styleFrom(
+                        backgroundColor: Colors.green,
+                        padding: const EdgeInsets.symmetric(vertical: 16),
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(8),
+                        ),
+                      ),
+                      child: const Text(
+                        'バトル開始',
+                        style: TextStyle(
+                          fontSize: 18,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ),
+                  ),
+                ],
               ),
-              const SizedBox(height: 20),
-              if (infoText.isNotEmpty)
+    );
+  }
+
+  // カードウィジェットを構築
+  Widget _buildCardItem(Map<String, dynamic> card) {
+    final cardName = card['name'] as String;
+    final cardPower = card['power'] as int;
+    final cardType = card['type'] as String;
+    final cardRank = card['rank'] as String;
+
+    return Card(
+      elevation: 4,
+      shape: RoundedRectangleBorder(
+        borderRadius: BorderRadius.circular(12),
+        side: BorderSide(color: _getTypeColor(cardType), width: 2),
+      ),
+      child: Padding(
+        padding: const EdgeInsets.all(12),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            // カードのタイプと強さ表示
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceBetween,
+              children: [
                 Container(
-                  padding: const EdgeInsets.all(12),
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
                   decoration: BoxDecoration(
-                    color: Colors.grey.shade100,
-                    borderRadius: BorderRadius.circular(8),
-                    border: Border.all(color: Colors.grey.shade300),
+                    color: _getTypeColor(cardType),
+                    borderRadius: BorderRadius.circular(4),
                   ),
                   child: Text(
-                    infoText,
-                    style: TextStyle(
-                      color:
-                          infoText.contains('エラー') ? Colors.red : Colors.blue,
+                    cardType,
+                    style: const TextStyle(
+                      color: Colors.white,
+                      fontWeight: FontWeight.bold,
                     ),
-                    textAlign: TextAlign.center,
                   ),
                 ),
-            ],
-          ),
+                Container(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: 8,
+                    vertical: 4,
+                  ),
+                  decoration: BoxDecoration(
+                    color: Colors.grey[200],
+                    borderRadius: BorderRadius.circular(4),
+                  ),
+                  child: Text(
+                    'ランク $cardRank',
+                    style: TextStyle(
+                      color: Colors.grey[800],
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ),
+              ],
+            ),
+            const SizedBox(height: 12),
+            // カード名
+            Expanded(
+              child: Text(
+                cardName,
+                style: const TextStyle(
+                  fontSize: 14,
+                  fontWeight: FontWeight.bold,
+                ),
+                maxLines: 3,
+                overflow: TextOverflow.ellipsis,
+              ),
+            ),
+            const SizedBox(height: 12),
+            // パワー表示
+            Row(
+              mainAxisAlignment: MainAxisAlignment.end,
+              children: [
+                const Text('パワー: ', style: TextStyle(fontSize: 14)),
+                Text(
+                  '$cardPower',
+                  style: const TextStyle(
+                    fontSize: 18,
+                    fontWeight: FontWeight.bold,
+                    color: Colors.red,
+                  ),
+                ),
+              ],
+            ),
+          ],
         ),
       ),
     );
