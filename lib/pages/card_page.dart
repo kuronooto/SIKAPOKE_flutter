@@ -2,6 +2,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:sikapoke_flutter/pages/gacha/widgets/gacha_utils.dart';
+import 'Deckbuilder_page.dart';
 
 class CardPage extends StatelessWidget {
   final String userId;
@@ -223,6 +224,23 @@ class CardPage extends StatelessWidget {
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () async {
+          // 所持カード情報を取得
+          final ownedCards = await getOwnedCardDetails();
+
+          Navigator.push(
+            context,
+            MaterialPageRoute(
+              builder:
+                  (context) =>
+                      DeckBuilderPage(userId: userId, ownedCards: ownedCards, deckId: "default_deck"),
+            ),
+          );
+        },
+        backgroundColor: Colors.deepPurple,
+        child: const Icon(Icons.dashboard),
       ),
     );
   }
