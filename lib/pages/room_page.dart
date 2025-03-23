@@ -1105,10 +1105,10 @@ class _RoomPageState extends State<RoomPage> {
                               : GridView.builder(
                                 gridDelegate:
                                     const SliverGridDelegateWithFixedCrossAxisCount(
-                                      crossAxisCount: 2,
-                                      childAspectRatio: 1.5,
-                                      crossAxisSpacing: 10,
-                                      mainAxisSpacing: 10,
+                                      crossAxisCount: 5, // 5列に変更
+                                      childAspectRatio: 0.7, // カードの縦横比を調整
+                                      crossAxisSpacing: 6, // 間隔を少し狭く
+                                      mainAxisSpacing: 6,
                                     ),
                                 itemCount: deckCards.length,
                                 itemBuilder: (context, index) {

@@ -368,10 +368,10 @@ class _BattlePageState extends State<BattlePage> {
                                     padding: const EdgeInsets.all(12),
                                     gridDelegate:
                                         const SliverGridDelegateWithFixedCrossAxisCount(
-                                          crossAxisCount: 2,
-                                          childAspectRatio: 0.8,
-                                          crossAxisSpacing: 12,
-                                          mainAxisSpacing: 12,
+                                          crossAxisCount: 5, // 5列に変更
+                                          childAspectRatio: 0.7, // カードの縦横比を調整
+                                          crossAxisSpacing: 6, // 間隔を少し狭く
+                                          mainAxisSpacing: 6,
                                         ),
                                     itemCount: _deckCards.length,
                                     itemBuilder: (context, index) {
