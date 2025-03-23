@@ -12,15 +12,24 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+      
       - name: Set up Flutter
         uses: subosito/flutter-action@v2
         with:
           channel: "stable"
           flutter-version: "3.29.0"
+      
+      - name: Verify Flutter installation
+        run: which flutter && flutter --version
+      
       - name: Get Flutter dependencies
         run: flutter pub get
-      - run: flutter build web
-      - uses: FirebaseExtended/action-hosting-deploy@v0
+      
+      - name: Build Flutter web app
+        run: flutter build web
+      
+      - name: Deploy to Firebase
+        uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: ${{ secrets.GITHUB_TOKEN }}
           firebaseServiceAccount: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_SIKAPOKE_42416 }}
