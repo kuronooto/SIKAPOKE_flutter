@@ -2,6 +2,8 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
 import 'package:sikapoke_flutter/pages/gacha/widgets/gacha_utils.dart';
+import 'Deckbuilder_page.dart';
+
 
 class CardPage extends StatelessWidget {
   final String userId;
@@ -223,6 +225,13 @@ class CardPage extends StatelessWidget {
             );
           },
         ),
+      ),
+      floatingActionButton: FloatingActionButton(
+        onPressed: () {
+          Navigator.pushNamed(context, '/deck'); //デッキ編成画面に推移
+        },
+        backgroundColor: Colors.deepPurple,
+        child: const Icon(Icons.dashboard),
       ),
     );
   }
