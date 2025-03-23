@@ -235,7 +235,7 @@ class CardPage extends StatelessWidget {
             MaterialPageRoute(
               builder:
                   (context) =>
-                      DeckBuilderPage(userId: userId, ownedCards: ownedCards),
+                      DeckBuilderPage(userId: userId, ownedCards: ownedCards, deckId: "default_deck"),
             ),
           );
         },
