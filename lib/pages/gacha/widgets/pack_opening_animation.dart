@@ -197,57 +197,28 @@ class _PackOpeningAnimationState extends State<PackOpeningAnimation> {
     );
   }
 
-  // 初期状態（スワイプを待つ）
+  // 初期状態（スワイプまたはボタンで開封）
   Widget _buildInitialPackState(PackModel selectedPack, Color glowColor) {
-    return GestureDetector(
-      // 横方向のドラッグを検出し、ドラッグの動きに合わせてアニメーションを事前表示
-      onHorizontalDragStart: (details) {
-        setState(() {
-          _isDragging = true;
-          _dragOffset = 0.0;
-        });
-      },
-      onHorizontalDragUpdate: (details) {
-        // ドラッグ中のプレビューアニメーション
-        setState(() {
-          _dragOffset += details.delta.dx;
-          // ドラッグ量を制限
-          _dragOffset = _dragOffset.clamp(-50.0, 50.0);
-        });
-      },
-      onHorizontalDragEnd: (details) {
-        setState(() {
-          _isDragging = false;
-          _dragOffset = 0.0;
-        });
-
-        if (details.primaryVelocity != null) {
-          // スワイプ速度がしきい値を超えたら開封アニメーションを開始
-          if (details.primaryVelocity!.abs() > 300) {
-            // スライス効果の触覚フィードバック
-            HapticFeedback.mediumImpact();
-            widget.onPackSwiped();
-            widget.playPackOpenSound();
-          }
-        }
-      },
-      // タップでも開封可能に
-      onTap: () {
-        widget.onPackSwiped();
-      },
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          Stack(
+    return Column(
+      mainAxisAlignment: MainAxisAlignment.center,
+      children: [
+        GestureDetector(
+          // スワイプで開封
+          onHorizontalDragEnd: (details) {
+            if (details.primaryVelocity != null &&
+                details.primaryVelocity!.abs() > 300) {
+              HapticFeedback.mediumImpact();
+              widget.onPackSwiped();
+              widget.playPackOpenSound();
+            }
+          },
+          child: Stack(
             alignment: Alignment.center,
             children: [
-              // パックカードを表示（ドラッグ中は少し傾ける）
               Transform(
                 alignment: Alignment.center,
-                transform:
-                    Matrix4.identity()
-                      ..setEntry(3, 2, 0.001) // パースペクティブ効果
-                      ..rotateY(_dragOffset / 500), // ドラッグに応じて少し回転
+                transform: Matrix4.identity()
+                  ..setEntry(3, 2, 0.001),
                 child: PackCard(
                   packData: selectedPack,
                   isSelected: true,
@@ -255,123 +226,40 @@ class _PackOpeningAnimationState extends State<PackOpeningAnimation> {
                   onTap: null,
                 ),
               ),
-
-              // スライスラインのインジケーター（スワイプを促すヒント）
-              Positioned(
-                child: Container(
-                  width: 150,
-                  height: 4,
-                  decoration: BoxDecoration(
-                    // 点線のようなエフェクト
-                    gradient: LinearGradient(
-                      colors: [
-                        Colors.transparent,
-                        glowColor.withOpacity(0.8),
-                        Colors.transparent,
-                      ],
-                      stops: const [0.0, 0.5, 1.0],
-                    ),
-                    // 明滅エフェクト
-                    boxShadow: [
-                      BoxShadow(
-                        color: glowColor.withOpacity(
-                          0.5 *
-                              (0.5 +
-                                  0.5 *
-                                      sin(
-                                        DateTime.now().millisecondsSinceEpoch /
-                                            500,
-                                      )),
-                        ),
-                        blurRadius: 8,
-                        spreadRadius: 2,
-                      ),
-                    ],
-                  ),
-                ),
-              ),
-
-              // パックの右端が光る演出
-              Positioned(
-                right: 0,
-                child: Container(
-                  width: 20,
-                  height: 280 * 1.2, // パックの高さに合わせる
-                  decoration: BoxDecoration(
-                    gradient: LinearGradient(
-                      begin: Alignment.centerRight,
-                      end: Alignment.centerLeft,
-                      colors: [
-                        glowColor.withOpacity(
-                          0.8 *
-                              (0.5 +
-                                  0.5 *
-                                      sin(
-                                        DateTime.now().millisecondsSinceEpoch /
-                                            300,
-                                      )),
-                        ), // 明滅エフェクト
-                        Colors.transparent,
-                      ],
-                    ),
-                  ),
-                ),
-              ),
-
-              // 左右のスワイプアイコン表示（ドラッグ方向に応じて強調）
-              Positioned(
-                right: -15,
-                child: Icon(
-                  Icons.arrow_forward_ios,
-                  color: glowColor.withOpacity(_dragOffset < 0 ? 1.0 : 0.7),
-                  size: _dragOffset < 0 ? 45 : 40,
-                ),
-              ),
-              Positioned(
-                left: -15,
-                child: Icon(
-                  Icons.arrow_back_ios,
-                  color: glowColor.withOpacity(_dragOffset > 0 ? 1.0 : 0.7),
-                  size: _dragOffset > 0 ? 45 : 40,
-                ),
-              ),
-
-              // ドラッグ中のスライス予告エフェクト
-              if (_isDragging && _dragOffset.abs() > 20)
-                Positioned(
-                  child: Container(
-                    width: 180,
-                    height: 3,
-                    decoration: BoxDecoration(
-                      color: Colors.white.withOpacity(
-                        (_dragOffset.abs() - 20) / 30 * 0.7,
-                      ),
-                      boxShadow: [
-                        BoxShadow(
-                          color: glowColor.withOpacity(
-                            (_dragOffset.abs() - 20) / 30 * 0.8,
-                          ),
-                          blurRadius: 10,
-                          spreadRadius: 2,
-                        ),
-                      ],
-                    ),
-                  ),
-                ),
             ],
           ),
-
-          const SizedBox(height: 20),
-          Text(
-            '← スワイプしてパックを開ける →',
-            style: TextStyle(
-              color: Colors.deepPurple,
-              fontWeight: FontWeight.bold,
-              fontSize: 16,
+        ),
+        const SizedBox(height: 20),
+        // ボタンで開封
+        ElevatedButton(
+          onPressed: () {
+            widget.onPackSwiped();
+            widget.playPackOpenSound();
+          },
+          style: ElevatedButton.styleFrom(
+            backgroundColor: glowColor,
+            foregroundColor: Colors.white,
+            padding: const EdgeInsets.symmetric(horizontal: 40, vertical: 16),
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(30),
             ),
           ),
-        ],
-      ),
+          child: const Text(
+            'パックを開ける',
+            style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold),
+          ),
+        ),
+        const SizedBox(height: 20),
+        // ヒントテキスト
+        const Text(
+          '← スワイプ または ボタンでパックを開ける →',
+          style: TextStyle(
+            color: Colors.deepPurple,
+            fontWeight: FontWeight.bold,
+            fontSize: 16,
+          ),
+        ),
+      ],
     );
   }
 
