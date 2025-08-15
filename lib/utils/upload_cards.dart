@@ -288,7 +288,7 @@ class DataUploadPage extends StatelessWidget {
     },
     {"id": 77, "name": "MOS（スペッシャリスト）", "type": "IT", "power": 47, "rank": "D"},
     {"id": 78, "name": "中国語検定1級", "type": "語学", "power": 78, "rank": "A"},
-    {"id": 79, "name": "草むしり検定2級", "type": "語学", "power": 81, "rank": "S"},
+    {"id": 79, "name": "草むしり検定2級", "type": "語学", "power": 82, "rank": "S"},
     {"id": 80, "name": "草むしり検定5級", "type": "語学", "power": 20, "rank": "D"},
     {
       "id": 81,
