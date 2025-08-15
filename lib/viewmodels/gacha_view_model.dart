@@ -45,10 +45,19 @@ class GachaViewModel extends ChangeNotifier {
     PackModel(
       id: 'legend',
       name: '超克の資格',
-      color: Colors.red.shade600,
+      color: const Color.fromARGB(255, 252, 199, 39),
       imagePath: 'assets/images/packs/legend_pack.png',
       rarityLevel: 4,
     ),
+    // ...existing code...
+    PackModel(
+      id: 'new_only',
+      name: '存在しない資格',
+      color: const Color.fromARGB(255, 242, 244, 242),
+      imagePath: 'assets/images/packs/legend_pack.png', // 新しい画像パス
+      rarityLevel: 5,
+    ),
+// ...existing code...
   ];
 
   // 選択されたパックの複製を8枚生成するリスト
