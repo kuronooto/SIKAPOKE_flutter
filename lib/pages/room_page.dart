@@ -237,8 +237,8 @@ class _RoomPageState extends State<RoomPage> {
         // スコアを確認して勝敗判定を行う（両プレイヤー側で実行）
         if (player1Points >= 3 ||
             player2Points >= 3 ||
-            player1OMP > 100 ||
-            player2OMP > 100) {
+            player1OMP > 150 ||
+            player2OMP > 150) {
           print(
             '勝敗判定条件を満たしています: P1=$player1Points, P2=$player2Points, P1OMP=$player1OMP, P2OMP=$player2OMP',
           );
@@ -501,7 +501,17 @@ class _RoomPageState extends State<RoomPage> {
     bool isGameOver = false;
 
     // 勝利条件: 3ポイント先取
-    if (player1Points >= 3) {
+
+    if (player1OMP > 150) {
+      gameOverResult = isPlayer1 ? 'あなたの勝ち！ (相手のOMP超過)' : 'あなたの負け！ (あなたのOMP超過)';
+      isGameOver = true;
+      print('プレイヤー1のOMPが150超過: $player1OMP');
+    } else if (player2OMP > 150) {
+      gameOverResult = isPlayer1 ? 'あなたの負け！ (あなたのOMP超過)' : 'あなたの勝ち (相手のOMP超過)';
+      isGameOver = true;
+      print('プレイヤー2のOMPが150超過: $player2OMP');
+    }
+      else if (player1Points >= 3) {
       gameOverResult = isPlayer1 ? 'あなたの勝ち！' : '相手の勝ち';
       isGameOver = true;
       print('プレイヤー1が3ポイント達成: $player1Points');
@@ -510,17 +520,7 @@ class _RoomPageState extends State<RoomPage> {
       isGameOver = true;
       print('プレイヤー2が3ポイント達成: $player2Points');
     }
-    // 敗北条件: OMP 100超過
-    else if (player1OMP > 100) {
-      gameOverResult = isPlayer1 ? 'あなたの勝ち！ (相手のOMP超過)' : 'あなたの負け！ (あなたのOMP超過)';
-      isGameOver = true;
-      print('プレイヤー1のOMPが100超過: $player1OMP');
-    } else if (player2OMP > 100) {
-      gameOverResult = isPlayer1 ? 'あなたの負け！ (あなたのOMP超過)' : 'あなたの勝ち (相手のOMP超過)';
-      isGameOver = true;
-      print('プレイヤー2のOMPが100超過: $player2OMP');
-    }
-
+    
     if (isGameOver && gameOverResult != null) {
       print('ゲーム終了条件を満たしました: $gameOverResult');
 
@@ -957,7 +957,7 @@ class _RoomPageState extends State<RoomPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                '勝利条件: 3ポイント先取\nOMPが100を超えると敗北します',
+                '勝利条件: 3ポイント先取\nOMPが150を超えると敗北します',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey),
               ),
