@@ -10,10 +10,10 @@ class CardGachaService {
 
   // パックレアリティに応じたカードの取得確率を設定
   final Map<int, Map<String, int>> _rarityProbability = {
-    1: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    2: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    3: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    4: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
+    1: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
+    2: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
+    3: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
+    4: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
   };
 
   // Firestoreからカードをランク別にランダム取得
@@ -22,7 +22,7 @@ class CardGachaService {
       // 新カード限定パック
       QuerySnapshot cardSnapshot = await _firestore
           .collection('cards')
-          .where('id', whereIn: [76, 79, 80, 170])
+          .where('id', whereIn: [201, 202, 203, 204])
           .get();
 
       if (cardSnapshot.docs.isEmpty) {

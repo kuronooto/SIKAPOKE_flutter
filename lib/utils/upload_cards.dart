@@ -666,32 +666,26 @@ class DataUploadPage extends StatelessWidget {
 // ...既存cardsリスト...
 //new cards to be added
 {
-  "id": 201,
-  "name": "AIスペシャリスト",
-  "type": "IT",
-  "power": 80,
-  "rank": "S",
+ "id": 201,
+      "name": "ハンターライセンス",
+      "type": "IT",
+      "power": 20,
+      "rank": "D",
 },
 {
   "id": 202,
-  "name": "グローバル翻訳士",
-  "type": "語学",
-  "power": 78,
-  "rank": "A",
+"name": "草むしり検定2級", "type": "語学", "power": 82, "rank": "S"
 },
 {
   "id": 203,
-  "name": "ビジネス戦略士",
-  "type": "ビジネス",
-  "power": 77,
-  "rank": "A",
+   "name": "草むしり検定5級", "type": "語学", "power": 20, "rank": "D"
 },
 {
   "id": 204,
-  "name": "クラウドエンジニア",
-  "type": "IT",
-  "power": 76,
-  "rank": "B",
+  "name": "オレオレ詐欺２級",
+      "type": "ビジネス",
+      "power": 20,
+      "rank": "D",
 },
 // ...既存cardsリストの末尾
   ];
