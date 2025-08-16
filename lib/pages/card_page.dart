@@ -1,7 +1,6 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:flutter/material.dart';
 import 'dart:math' as math;
-import 'package:sikapoke_flutter/pages/gacha/widgets/gacha_utils.dart';
 import 'Deckbuilder_page.dart';
 
 class CardPage extends StatelessWidget {
