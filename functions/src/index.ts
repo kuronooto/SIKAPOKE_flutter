@@ -165,12 +165,14 @@ export const endTurn = onCall(
         let turnResult: "p1" | "p2" | "draw" = "draw";
 
         if (p1Final.power > p2Final.power) {
+          // 勝者（P1）にポイントとOMPを加算
           p1PointDelta = 1;
-          p2OmpDelta = p1Final.power - p2Final.power;
+          p1OmpDelta = p1Final.power - p2Final.power;
           turnResult = "p1";
         } else if (p1Final.power < p2Final.power) {
+          // 勝者（P2）にポイントとOMPを加算
           p2PointDelta = 1;
-          p1OmpDelta = p2Final.power - p1Final.power;
+          p2OmpDelta = p2Final.power - p1Final.power;
           turnResult = "p2";
         }
 
@@ -187,23 +189,23 @@ export const endTurn = onCall(
         const newP1Omp = curP1Omp + p1OmpDelta;
         const newP2Omp = curP2Omp + p2OmpDelta;
 
-        // ルール: 先に3ポイントで勝利。ただし OMP が閾値 (>=150) になると敗北扱い（敗北判定が優先）
+        // ルール: 先に3ポイントで勝利。ただし OMP が閾値 (150 を「超える」) になると敗北扱い（OMP敗北が優先）
         const OMP_LOSS_THRESHOLD = 150;
         let finished = false;
         let winnerId: string | null = null;
 
-        // OMP敗北判定（優先）
-        if (newP1Omp >= OMP_LOSS_THRESHOLD && newP2Omp >= OMP_LOSS_THRESHOLD) {
-          // 両者が同時に閾値到達した場合は引き分け扱い（任意: 明確化）
+        // OMP敗北判定（優先） - 「150を超えると敗北」
+        if (newP1Omp > OMP_LOSS_THRESHOLD && newP2Omp > OMP_LOSS_THRESHOLD) {
+          // 両者が同時に閾値超過 -> 引き分け扱い（winnerId は null）
           finished = true;
           winnerId = null;
-        } else if (newP1Omp >= OMP_LOSS_THRESHOLD) {
+        } else if (newP1Omp > OMP_LOSS_THRESHOLD) {
           finished = true;
-          // P1 が閾値到達 → P1 の敗北 -> 勝者は P2
+          // P1 が閾値超過 -> P1 の敗北 -> 勝者は P2
           winnerId = p2 ?? null;
-        } else if (newP2Omp >= OMP_LOSS_THRESHOLD) {
+        } else if (newP2Omp > OMP_LOSS_THRESHOLD) {
           finished = true;
-          // P2 が閾値到達 → P2 の敗北 -> 勝者は P1
+          // P2 が閾値超過 -> P2 の敗北 -> 勝者は P1
           winnerId = p1 ?? null;
         } else if (newP1Pts >= 3) {
           finished = true;

@@ -12,7 +12,7 @@ Flutter × Firebase（Auth/Firestore/Functions）で実装したカード対戦�
 - カード（id, name, type, power, rank）で対戦
 - カード相性: IT > 語学 > ビジネス > IT（有利側はパワー2倍）
 - 勝利条件: 先に3ポイント獲得
-- 失格条件: OMP（Over Mount Point）が閾値を超えると敗北（仕様: OMPが150以上になると敗北。Functions・UI共に150を閾値とする）
+- 失格条件: OMP（Over Mount Point）が閾値を超えると敗北（仕様: OMPが150を超えると敗北。Functions・UI共に150を閾値とする）
 - マッチング:
   - createOrJoinRoom（空き待機ルームへ参加 or 新規作成）
   - selectCard（選択のみ。解決はサーバー）
