@@ -1,125 +1,42 @@
 import 'dart:math';
-import 'package:cloud_firestore/cloud_firestore.dart';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'package:cloud_functions/cloud_functions.dart';
 import '../models/pack_model.dart';
 
 class CardGachaService {
-  final FirebaseFirestore _firestore = FirebaseFirestore.instance;
-  final FirebaseAuth _auth = FirebaseAuth.instance;
   final Random _random = Random();
 
-  // パックレアリティに応じたカードの取得確率を設定
-  final Map<int, Map<String, int>> _rarityProbability = {
-    1: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    2: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    3: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    4: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-  };
 
-  // Firestoreからカードをランク別にランダム取得
+  // Firestoreからカードをランク別にランダム取得 → Cloud Functions へ委譲
   Future<CardResult> getRandomCard(int packRarityLevel) async {
     try {
-      // パックのレアリティに基づいてカードのランクを決定
-      String cardRank = _determineCardRank(packRarityLevel);
+      // サーバー側で: ランク決定 / カード選択 / 所持付与 / 履歴保存 を実施
+      final functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+      final res = await functions.httpsCallable('drawGacha').call({
+        'packRarityLevel': packRarityLevel,
+      });
 
-      // 指定したランクのカードを全て取得
-      QuerySnapshot cardSnapshot =
-          await _firestore
-              .collection('cards')
-              .where('rank', isEqualTo: cardRank)
-              .get();
+      final data = Map<String, dynamic>.from(res.data as Map);
+      final card = Map<String, dynamic>.from(data['card'] as Map);
+      final rarityLevel =
+          (data['rarityLevel'] as num?)?.toInt() ??
+          _getRarityLevel(card['rank'] as String? ?? 'D');
+      final imageIndex =
+          (data['imageIndex'] as num?)?.toInt() ?? _random.nextInt(3);
 
-      if (cardSnapshot.docs.isEmpty) {
-        // カードが見つからない場合は代替カードを返す
-        return _createFallbackCard(cardRank);
-      }
-
-      // ランダムにカードを1枚選択
-      int randomIndex = _random.nextInt(cardSnapshot.docs.length);
-      DocumentSnapshot cardDoc = cardSnapshot.docs[randomIndex];
-      Map<String, dynamic> cardData = cardDoc.data() as Map<String, dynamic>;
-
-      // カード結果を生成
-      CardResult result = CardResult(
-        id: cardDoc.id,
-        name: cardData['name'] ?? 'Unknown Card',
-        imagePath:
-            'assets/images/cards/card_${_getRarityLevel(cardRank)}_${_random.nextInt(3)}.png',
-        rarityLevel: _getRarityLevel(cardRank),
-        description: _generateCardDescription(cardData),
+      return CardResult(
+        id: (card['id']?.toString() ?? '0'),
+        name: card['name'] ?? 'Unknown Card',
+        imagePath: 'assets/images/cards/card_${rarityLevel}_$imageIndex.png',
+        rarityLevel: rarityLevel,
+        description: _generateCardDescription(card),
       );
-
-      // ユーザーがログインしている場合、カードを所有カードリストに追加
-      await _addCardToUserCollection(cardData['id']?.toString() ?? '0');
-
-      return result;
+    } on FirebaseFunctionsException catch (e) {
+      print('drawGacha Functions エラー: code=${e.code}, message=${e.message}');
+      return _createFallbackCard('C');
     } catch (e) {
       print('カード取得エラー: $e');
-      return _createFallbackCard('C'); // エラー時はフォールバックカード
+      return _createFallbackCard('C');
     }
-  }
-
-  // ユーザーの所有カードコレクションにカードを追加
-  Future<void> _addCardToUserCollection(String cardId) async {
-    try {
-      final userId = _auth.currentUser?.uid;
-      if (userId == null) return;
-
-      print('カードIDを保存: $cardId'); // デバッグログ追加
-
-      // ユーザーの所有カードリファレンス
-      // cardIdを直接ドキュメントIDとして使う
-      final userCardRef = _firestore
-          .collection('users')
-          .doc(userId)
-          .collection('owned_cards')
-          .doc(cardId);
-
-      // カードの存在確認
-      final cardDoc = await userCardRef.get();
-
-      if (cardDoc.exists) {
-        // 既に所持している場合は枚数を増やす
-        int currentNumber = (cardDoc.data()?['number'] as num?)?.toInt() ?? 0;
-        await userCardRef.update({'number': currentNumber + 1});
-        print('既存カード更新: ID=$cardId, 新しい所持枚数=${currentNumber + 1}'); // デバッグログ追加
-      } else {
-        // 新規カードの場合
-        await userCardRef.set({
-          'id': int.tryParse(cardId) ?? 0, // 安全に数値変換（失敗したら0）
-          'number': 1,
-        });
-        print('新規カード追加: ID=$cardId, 所持枚数=1'); // デバッグログ追加
-      }
-    } catch (e) {
-      print('カード追加エラー: $e');
-    }
-  }
-
-  // パックレアリティに基づいてカードランクを確率的に決定
-  String _determineCardRank(int packRarityLevel) {
-    // パックレアリティが範囲外の場合は標準のノーマルパック確率を使用
-    if (!_rarityProbability.containsKey(packRarityLevel)) {
-      packRarityLevel = 1;
-    }
-
-    Map<String, int> probabilities = _rarityProbability[packRarityLevel]!;
-    int totalProbability = probabilities.values.fold(
-      0,
-      (sum, value) => sum + value,
-    );
-    int randomValue = _random.nextInt(totalProbability);
-
-    int cumulativeProbability = 0;
-    for (var entry in probabilities.entries) {
-      cumulativeProbability += entry.value;
-      if (randomValue < cumulativeProbability) {
-        return entry.key;
-      }
-    }
-
-    // デフォルトは最も低いランク
-    return 'D';
   }
 
   // ランクからレアリティレベルへの変換

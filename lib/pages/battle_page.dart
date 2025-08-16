@@ -46,37 +46,49 @@ class _BattlePageState extends State<BattlePage> {
         return;
       }
 
-      // Get the player's deck
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
+      final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+      final userDoc = await userRef.get();
+
+      _deckCards = []; // クリア
 
       if (userDoc.exists && userDoc.data()!.containsKey('deck')) {
-        _playerDeck = List<int>.from(userDoc.data()!['deck']);
+        _playerDeck = List<int>.from(userDoc.data()!['deck'] ?? const []);
+      }
 
-        // Load card data for each card in the deck
-        for (var cardId in _playerDeck) {
-          // Skip placeholder or invalid cards (cardId 0)
-          if (cardId > 0) {
-            final cardDoc =
-                await FirebaseFirestore.instance
-                    .collection('cards')
-                    .where('id', isEqualTo: cardId)
-                    .limit(1)
-                    .get();
+      // 追加: deck が未設定/空なら、owned_cards から自動作成（最大25枚）
+      if (_playerDeck.isEmpty) {
+        final ownedSnap = await userRef.collection('owned_cards').get();
+        final ownedIds = ownedSnap.docs
+            .map((d) => (d.data()['id'] as int?))
+            .whereType<int>()
+            .toList();
 
-            if (cardDoc.docs.isNotEmpty) {
-              _deckCards.add(cardDoc.docs.first.data());
-            }
+        if (ownedIds.isNotEmpty) {
+          final limit = 25; // 必要に応じて変更
+          _playerDeck = ownedIds.take(limit).toList();
+
+          // users.deck に保存（ドキュメントがない場合でも merge で作成）
+          await userRef.set({'deck': _playerDeck}, SetOptions(merge: true));
+        }
+      }
+
+      // deck に基づいてカードデータを取得
+      for (var cardId in _playerDeck) {
+        if (cardId > 0) {
+          final cardDoc = await FirebaseFirestore.instance
+              .collection('cards')
+              .where('id', isEqualTo: cardId)
+              .limit(1)
+              .get();
+          if (cardDoc.docs.isNotEmpty) {
+            _deckCards.add(cardDoc.docs.first.data());
           }
         }
-
-        setState(() {
-          _isDeckLoaded = true;
-        });
       }
+
+      setState(() {
+        _isDeckLoaded = true;
+      });
     } catch (e) {
       setState(() {
         infoText = 'デッキの読み込みエラー: $e';
@@ -301,8 +313,9 @@ class _BattlePageState extends State<BattlePage> {
                         SizedBox(height: 8),
                         Text('1. 各ターンごとに1枚のカードを選択します'),
                         Text('2. 3ポイント先取で勝利'),
-                        Text('3. OMP（オーバーマウント・ポイント）が100を超えると敗北'),
-                        Text('4. カード相性: IT > 語学 > ビジネス > IT'),
+                        Text('3. OMP（オーバーマウント・ポイント）が150以上になると敗北'),
+                        Text('勝利条件と敗北条件が同時に起きた場合敗北の処理が優先されます'),
+                        Text('4. カード相性(OMPの値が２倍): IT > 語学 > ビジネス > IT'),
                       ],
                     ),
                   ),

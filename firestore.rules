@@ -1,0 +1,82 @@
+rules_version = '2';
+service cloud.firestore {
+  function isAuthed() { return request.auth != null; }
+  function isSelf(uid) { return isAuthed() && request.auth.uid == uid; }
+
+  // deck だけを変更しているか
+  function isDeckOnlyChange() {
+    return request.resource.data.diff(resource.data).changedKeys().hasOnly(['deck']);
+  }
+  // deck の簡易バリデーション（長さと数値チェック）
+  function isValidDeck() {
+    return request.resource.data.deck is list
+      && request.resource.data.deck.size() >= 1
+      && request.resource.data.deck.size() <= 25
+      && request.resource.data.deck.all(d, d is number && d >= 0);
+  }
+
+  // ルームの参加者か（読み取り用）
+  function isRoomParticipant() {
+    return isAuthed()
+      && (resource.data.player1_id == request.auth.uid
+          || resource.data.player2_id == request.auth.uid);
+  }
+
+  match /databases/{db}/documents {
+    // 公開カードカタログ
+    match /cards/{cardId} {
+      allow read: if true;              // 公開
+      allow write: if false;            // クライアント書き込み禁止（Admin SDKはバイパス）
+    }
+
+    // ユーザー直下
+    match /users/{uid} {
+      allow read: if isSelf(uid);
+
+      // 作成は deck のみ、更新も deck のみ許可
+      allow create: if isSelf(uid)
+        && request.resource.data.keys().hasOnly(['deck'])
+        && request.resource.data.deck is list;
+
+      allow update: if isSelf(uid)
+        && isDeckOnlyChange()
+        && isValidDeck();
+
+      allow delete: if false;
+
+      // 所持カードとガチャ履歴（閲覧のみ）
+      match /owned_cards/{cardId} {
+        allow read: if isSelf(uid);
+        allow write: if false;
+      }
+      match /gacha_history/{histId} {
+        allow read: if isSelf(uid);
+        allow write: if false;
+      }
+    }
+
+    // 対戦ルーム
+    match /rooms/{roomId} {
+      // 参加者のみ閲覧可能（UIは roomId 確定後に購読）
+      allow read: if isRoomParticipant();
+      allow write: if false; // 変更は必ず Cloud Functions 経由
+
+      // 監査ログ（閲覧のみ）
+      match /actions/{actionId} {
+        allow read: if isRoomParticipant();
+        allow write: if false;
+      }
+    }
+
+    // Functionsの動作検証コレクション（本人だけ読める）
+    match /functions_test/{docId} {
+      allow read: if isAuthed() && resource.data.userId == request.auth.uid;
+      allow write: if false;
+    }
+
+    // それ以外は拒否
+    match /{document=**} {
+      allow read, write: if false;
+    }
+  }
+}

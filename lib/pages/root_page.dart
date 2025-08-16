@@ -4,6 +4,8 @@ import 'package:sikapoke_flutter/pages/card_page.dart';
 import 'package:sikapoke_flutter/pages/battle_page.dart';
 import 'package:sikapoke_flutter/pages/home_page.dart';
 import 'package:sikapoke_flutter/pages/auth_page.dart';
+import '../testpages/functions_test.dart';//テストページ
+import 'package:flutter/foundation.dart';
 //import 'package:mokumou_hazard/test_page.dart'';
 
 /// ボトムナビゲーションを実装
@@ -52,6 +54,18 @@ class _RootPageState extends State<RootPage> {
     }
 
     return Scaffold(
+      // デバッグモードの時のみテストページへの遷移ボタン表示
+      floatingActionButton: kDebugMode ? FloatingActionButton(
+        onPressed: () {
+          Navigator.push(
+            context,
+            MaterialPageRoute(builder: (context) => const FunctionsTestPage()),
+          );
+        },
+      child: const Icon(Icons.code),
+      tooltip: 'Functions テスト',
+    ) : null,
+    floatingActionButtonLocation: FloatingActionButtonLocation.startFloat,
       appBar: AppBar(
         backgroundColor: Colors.cyan,
         //ロゴマーク画像
