@@ -1,11 +1,22 @@
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'dart:developer'; // ログ出力用
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 class BattleViewModel {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final FirebaseAuth _auth = FirebaseAuth.instance;
   String? currentRoomId; // 現在のルームIDを保持
+  final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+
+  BattleViewModel() {
+    // エミュレータ（必要なら）
+    const useEmu = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: kDebugMode);
+    if (useEmu) {
+      try { _functions.useFunctionsEmulator('localhost', 5001); } catch (_) {}
+    }
+  }
 
   // ユーザーのデッキを取得する
   Future<List<int>> fetchUserDeck() async {
@@ -26,7 +37,7 @@ class BattleViewModel {
     return [];
   }
 
-  // バトル開始処理
+  // バトル開始処理（Functions: createOrJoinRoom を使用）
   Future<String> handleBattleStart() async {
     final userId = _auth.currentUser?.uid;
     if (userId == null) {
@@ -34,91 +45,37 @@ class BattleViewModel {
     }
 
     try {
-      final roomsRef = _firestore.collection('rooms');
+      // デッキ確認（空デッキは開始不可）
+      final userDeck = await fetchUserDeck();
+      if (userDeck.isEmpty) {
+        return 'デッキが設定されていません';
+      }
 
-      // シンプルな条件でマッチングを試みる
-      final waitingRooms =
-          await roomsRef.where('room_status', isEqualTo: 'waiting').get();
+      final res = await _functions.httpsCallable('createOrJoinRoom').call({});
+      final data = Map<String, dynamic>.from(res.data as Map);
+      final roomId = data['roomId'] as String?;
+      final joinedAs = data['joinedAs'] as String?; // 'player1' | 'player2'
+      if (roomId == null) {
+        return 'エラーが発生しました: roomId なし';
+      }
+      currentRoomId = roomId;
 
-      // 自分以外が作ったルームがあるか確認
-      final availableRooms =
-          waitingRooms.docs
-              .where((doc) => doc.data()['player1_id'] != userId)
-              .toList();
-
-      if (availableRooms.isNotEmpty) {
-        // 待機中のルームがあれば参加
-        final room = availableRooms.first;
-        currentRoomId = room.id;
-
-        // プレイヤー2としてマッチング
-        await roomsRef.doc(room.id).update({
-          'player2_id': userId,
-          'room_status': 'match',
-        });
-
-        return 'ルームに参加しました: ${room.id}';
+      if (joinedAs == 'player2') {
+        return 'ルームに参加しました: $roomId';
       } else {
-        // 待機中のルームが存在しない場合、新しいルームを作成
-        log('待機中のルームがないため、新規作成します');
-
-        // デッキ情報を取得
-        final userDeck = await fetchUserDeck();
-        if (userDeck.isEmpty) {
-          return 'デッキが設定されていません';
-        }
-
-        // ゲームの初期状態を設定
-        final newRoom = await roomsRef.add({
-          'game_state': {
-            'turn': 1,
-            'player1_point': 0,
-            'player2_point': 0,
-            'player1_over_mount': 0,
-            'player2_over_mount': 0,
-            'player1_card': null,
-            'player2_card': null,
-          },
-          'logs': {
-            'player1_log': {'type': [], 'power': []},
-            'player2_log': {'type': [], 'power': []},
-          },
-          'room_status': 'waiting',
-          'player1_id': userId,
-          'player2_id': null,
-          'created_at': FieldValue.serverTimestamp(),
-        });
-
-        currentRoomId = newRoom.id; // ルームIDを保持
         return '新しいルームを作成しました。対戦相手を待っています...';
       }
     } catch (e) {
-      log('Firestore エラー: $e');
+      log('Functions エラー(createOrJoinRoom): $e');
       return 'エラーが発生しました: ${e.toString()}';
     }
   }
 
-  // マッチングをキャンセルする
+  // マッチングをキャンセルする（Functions: leaveRoom を使用）
   Future<void> cancelMatching(String roomId) async {
     try {
-      final userId = _auth.currentUser?.uid;
-      final roomRef = _firestore.collection('rooms').doc(roomId);
-      final roomSnapshot = await roomRef.get();
-
-      if (roomSnapshot.exists) {
-        final data = roomSnapshot.data();
-
-        // 自分がプレイヤー1の場合は削除、プレイヤー2の場合は退出
-        if (data?['player1_id'] == userId && data?['player2_id'] == null) {
-          // 自分が作成した待機中のルームの場合は削除
-          await roomRef.delete();
-          log('ルームを削除しました: $roomId');
-        } else if (data?['player2_id'] == userId) {
-          // 自分がプレイヤー2の場合は退出
-          await roomRef.update({'player2_id': null, 'room_status': 'waiting'});
-          log('ルームから退出しました: $roomId');
-        }
-      }
+      await _functions.httpsCallable('leaveRoom').call({'roomId': roomId});
+      log('ルーム離脱（キャンセル）: $roomId');
     } catch (e) {
       log('マッチングキャンセルエラー: $e');
     }

@@ -41,13 +41,13 @@ class DefaultFirebaseOptions {
   }
 
   static const FirebaseOptions web = FirebaseOptions(
-    apiKey: 'AIzaSyD364SqFKaTSyR1FGJ7QN2H6CY1wQEA8-g',
-    appId: '1:454172092919:web:86912376cdf0fe12f7e6f2',
-    messagingSenderId: '454172092919',
-    projectId: 'sikapoke-42416',
-    authDomain: 'sikapoke-42416.firebaseapp.com',
-    storageBucket: 'sikapoke-42416.firebasestorage.app',
-    measurementId: 'G-09VB3EM3ZW',
+    apiKey: 'AIzaSyDxOkpNLnlTw1okNrl7-IzyUF5zpNcksrE',
+    appId: '1:94818912888:web:80fb59ca4fcc8575d3fb8d',
+    messagingSenderId: '94818912888',
+    projectId: 'sikapokeneo',
+    authDomain: 'sikapokeneo.firebaseapp.com',
+    storageBucket: 'sikapokeneo.firebasestorage.app',
+    measurementId: 'G-6NH3PP3V2M',
   );
 
   static const FirebaseOptions android = FirebaseOptions(
