@@ -846,7 +846,7 @@ class _RoomPageState extends State<RoomPage> {
               ),
               const SizedBox(height: 16),
               const Text(
-                '勝利条件: 3ポイント先取\nOMPが100を超えると敗北します',
+                '勝利条件: 3ポイント先取\nOMPが150を超えると敗北します',
                 textAlign: TextAlign.center,
                 style: TextStyle(color: Colors.grey),
               ),

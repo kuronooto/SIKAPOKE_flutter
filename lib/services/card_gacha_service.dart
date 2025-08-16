@@ -5,6 +5,7 @@ import '../models/pack_model.dart';
 class CardGachaService {
   final Random _random = Random();
 
+
   // Firestoreからカードをランク別にランダム取得 → Cloud Functions へ委譲
   Future<CardResult> getRandomCard(int packRarityLevel) async {
     try {
