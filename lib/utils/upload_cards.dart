@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/foundation.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 
 // Firestore データアップロード用
 class DataUploadPage extends StatelessWidget {
@@ -664,20 +667,79 @@ class DataUploadPage extends StatelessWidget {
   ];
 
   Future<void> uploadData() async {
-    final collection = FirebaseFirestore.instance.collection('cards');
-    for (var card in cards) {
-      await collection.add(card);
+    final functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+    const useEmu = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: kDebugMode);
+    if (useEmu) {
+      try { functions.useFunctionsEmulator('localhost', 5001); } catch (_) {}
+      try { FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080); } catch (_) {}
+      try { await FirebaseAuth.instance.useAuthEmulator('localhost', 9099); } catch (_) {} // 追加
+    }
+
+    // 追加: 認証を保証（未ログインなら匿名、ログイン済みならトークン更新）
+    if (FirebaseAuth.instance.currentUser == null) {
+      await FirebaseAuth.instance.signInAnonymously();
+    } else {
+      await FirebaseAuth.instance.currentUser!.getIdToken(true);
+    }
+
+    try {
+      await functions.httpsCallable('adminUpsertCards').call(<String, dynamic>{ 'cards': cards });
+    } on FirebaseFunctionsException catch (e) {
+      // Web での原因特定用に details を表示
+      debugPrint('adminUpsertCards error code=${e.code} message=${e.message} details=${e.details}');
+      rethrow;
+    }
+  }
+
+  // 追加: 誤操作防止の確認
+  Future<void> _confirmAndUpload(BuildContext context) async {
+    const useEmu = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: kDebugMode);
+    if (!useEmu) {
+      final ok = await showDialog<bool>(
+        context: context,
+        builder: (dialogContext) => AlertDialog(
+          title: const Text('本番へカードを投入します'),
+          content: const Text('本当に続行しますか？この操作は元に戻せません。'),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(false),
+              child: const Text('キャンセル'),
+            ),
+            ElevatedButton(
+              onPressed: () => Navigator.of(dialogContext).pop(true),
+              child: const Text('投入する'),
+            ),
+          ],
+        ),
+      );
+      if (ok != true) return;
+    }
+    try {
+      await uploadData();
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('カードマスタを投入しました')));
+    } on FirebaseFunctionsException catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('投入失敗: ${e.code} ${e.message ?? ""}')),
+      );
+    } catch (e) {
+      // ignore: use_build_context_synchronously
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('投入失敗(その他): $e')),
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
+    const useEmu = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: kDebugMode);
     return Scaffold(
-      appBar: AppBar(title: Text('Data Upload')),
+      appBar: AppBar(title: Text('Data Upload${useEmu ? " (emu)" : " (prod)"}')),
       body: Center(
         child: ElevatedButton(
-          onPressed: uploadData,
-          child: Text('Upload Data'),
+          onPressed: () => _confirmAndUpload(context),
+          child: const Text('Upload Data'),
         ),
       ),
     );

@@ -10,13 +10,9 @@
       },
       "dart": {
         "lib/firebase_options.dart": {
-          "projectId": "sikapoke-42416",
+          "projectId": "sikapokeneo",
           "configurations": {
-            "android": "1:454172092919:android:00f313fa8261e938f7e6f2",
-            "ios": "1:454172092919:ios:6ef651f532a9fe67f7e6f2",
-            "macos": "1:454172092919:ios:5a8b3d57e4cb8f7cf7e6f2",
-            "web": "1:454172092919:web:86912376cdf0fe12f7e6f2",
-            "windows": "1:454172092919:web:2ce727529d045e80f7e6f2"
+            "web": "1:94818912888:web:80fb59ca4fcc8575d3fb8d"
           }
         }
       }
@@ -31,20 +27,23 @@
     ]
   },
   "functions": {
-      "source": "functions",
-      "codebase": "default",
-      "ignore": [
-        "node_modules",
-        ".git",
-        "firebase-debug.log",
-        "firebase-debug.*.log",
-        "*.local"
-      ],
-      "predeploy": [
-        "npm --prefix \"$RESOURCE_DIR\" run lint",
-        "npm --prefix \"$RESOURCE_DIR\" run build"
-      ]
-    },
+    "source": "functions",
+    "codebase": "default",
+    "ignore": [
+      "node_modules",
+      ".git",
+      "firebase-debug.log",
+      "firebase-debug.*.log",
+      "*.local"
+    ],
+    "predeploy": [
+      "npm --prefix \"$RESOURCE_DIR\" run lint",
+      "npm --prefix \"$RESOURCE_DIR\" run build"
+    ]
+  },
+  "firestore": {
+    "rules": "firestore.rules"
+  },
   "emulators": {
     "firestore": {
       "port": 8080
@@ -55,6 +54,13 @@
     "ui": {
       "enabled": true,
       "port": 4000
-    }
+    },
+    "auth": {
+      "port": 9099
+    },
+    "hosting": {
+      "port": 5000
+    },
+    "singleProjectMode": true
   }
 }

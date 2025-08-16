@@ -16,35 +16,35 @@ class CardPage extends StatelessWidget {
         .doc(userId)
         .collection('owned_cards');
 
-    CollectionReference cardsRef = FirebaseFirestore.instance.collection(
-      'cards',
-    );
+    CollectionReference cardsRef = FirebaseFirestore.instance.collection('cards');
 
     try {
-      QuerySnapshot ownedSnapshot = await ownedCardsRef.get();
-      List<Map<String, dynamic>> ownedCards =
-          ownedSnapshot.docs.map((doc) {
-            return {'cardId': doc['id'], 'number': doc['number']};
-          }).toList();
+      final ownedSnapshot = await ownedCardsRef.get();
+      // 修正: 例外にならないよう安全に取り出し、count/number 両対応
+      final ownedCards = ownedSnapshot.docs.map((doc) {
+        final data = (doc.data() as Map<String, dynamic>? ) ?? {};
+        final id = (data['id'] is int)
+            ? data['id'] as int
+            : int.tryParse(doc.id) ?? 0;
+        final rawCount = data['count'] ?? data['number'] ?? 0;
+        final owned = rawCount is int ? rawCount : int.tryParse(rawCount.toString()) ?? 0;
+        return {'cardId': id, 'owned': owned};
+      }).where((e) => (e['cardId'] as int) > 0 && (e['owned'] as int) > 0).toList();
 
-      List<Map<String, dynamic>> cardDetails = [];
-
-      for (var ownedCard in ownedCards) {
-        String cardId = ownedCard['cardId'].toString(); // IDを文字列に変換
-
-        // 一致するカード情報を取得
-        QuerySnapshot cardSnapshot =
-            await cardsRef.where('id', isEqualTo: int.parse(cardId)).get();
-
-        if (cardSnapshot.docs.isNotEmpty) {
-          var cardData = cardSnapshot.docs.first.data() as Map<String, dynamic>;
+      final List<Map<String, dynamic>> cardDetails = [];
+      for (var owned in ownedCards) {
+        final cardId = owned['cardId'] as int;
+        final snap = await cardsRef.where('id', isEqualTo: cardId).limit(1).get();
+        if (snap.docs.isNotEmpty) {
+          final cardData = snap.docs.first.data() as Map<String, dynamic>;
           cardDetails.add({
             'cardId': cardData['id'],
             'name': cardData['name'],
             'power': cardData['power'],
             'rank': cardData['rank'],
             'type': cardData['type'],
-            'number': ownedCard['number'],
+            // 修正: 所持枚数キーを owned に統一
+            'owned': owned['owned'],
             'rarityLevel': _getRarityLevelFromRank(cardData['rank']),
           });
         }
@@ -189,10 +189,7 @@ class CardPage extends StatelessWidget {
         ),
         child: FutureBuilder(
           future: getOwnedCardDetails(),
-          builder: (
-            context,
-            AsyncSnapshot<List<Map<String, dynamic>>> snapshot,
-          ) {
+          builder: (context, AsyncSnapshot<List<Map<String, dynamic>>> snapshot) {
             if (snapshot.connectionState == ConnectionState.waiting) {
               return const Center(child: CircularProgressIndicator());
             }
@@ -233,9 +230,11 @@ class CardPage extends StatelessWidget {
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder:
-                  (context) =>
-                      DeckBuilderPage(userId: userId, ownedCards: ownedCards, deckId: "default_deck"),
+              builder: (context) => DeckBuilderPage(
+                userId: userId,
+                ownedCards: ownedCards,
+                deckId: "default_deck",
+              ),
             ),
           );
         },
@@ -396,18 +395,15 @@ class CardPage extends StatelessWidget {
                     ),
                   ),
 
-                  // 所持枚数
+                  // 所持枚数（修正: number -> owned）
                   Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 3,
-                      vertical: 1,
-                    ),
+                    padding: const EdgeInsets.symmetric(horizontal: 3, vertical: 1),
                     decoration: BoxDecoration(
                       color: Colors.white.withOpacity(0.3),
                       borderRadius: BorderRadius.circular(4),
                     ),
                     child: Text(
-                      "×${card['number']}",
+                      "×${card['owned']}",
                       style: TextStyle(
                         color: Colors.white,
                         fontWeight: FontWeight.bold,
@@ -559,11 +555,9 @@ class CardPage extends StatelessWidget {
                       _detailRow("ID", card['cardId'].toString()),
                       _detailRow("タイプ", card['type']),
                       _detailRow("パワー", card['power'].toString()),
-                      _detailRow(
-                        "ランク",
-                        "${card['rank']} (${_getRarityStars(card['rank'])})",
-                      ),
-                      _detailRow("所持枚数", "${card['number']}枚"),
+                      _detailRow("ランク", "${card['rank']} (${_getRarityStars(card['rank'])})"),
+                      // 修正: 所持枚数（number -> owned）
+                      _detailRow("所持枚数", "${card['owned']}枚"),
                     ],
                   ),
                 ),

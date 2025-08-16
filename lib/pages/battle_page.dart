@@ -46,37 +46,49 @@ class _BattlePageState extends State<BattlePage> {
         return;
       }
 
-      // Get the player's deck
-      final userDoc =
-          await FirebaseFirestore.instance
-              .collection('users')
-              .doc(userId)
-              .get();
+      final userRef = FirebaseFirestore.instance.collection('users').doc(userId);
+      final userDoc = await userRef.get();
+
+      _deckCards = []; // クリア
 
       if (userDoc.exists && userDoc.data()!.containsKey('deck')) {
-        _playerDeck = List<int>.from(userDoc.data()!['deck']);
+        _playerDeck = List<int>.from(userDoc.data()!['deck'] ?? const []);
+      }
 
-        // Load card data for each card in the deck
-        for (var cardId in _playerDeck) {
-          // Skip placeholder or invalid cards (cardId 0)
-          if (cardId > 0) {
-            final cardDoc =
-                await FirebaseFirestore.instance
-                    .collection('cards')
-                    .where('id', isEqualTo: cardId)
-                    .limit(1)
-                    .get();
+      // 追加: deck が未設定/空なら、owned_cards から自動作成（最大25枚）
+      if (_playerDeck.isEmpty) {
+        final ownedSnap = await userRef.collection('owned_cards').get();
+        final ownedIds = ownedSnap.docs
+            .map((d) => (d.data()['id'] as int?))
+            .whereType<int>()
+            .toList();
 
-            if (cardDoc.docs.isNotEmpty) {
-              _deckCards.add(cardDoc.docs.first.data());
-            }
+        if (ownedIds.isNotEmpty) {
+          final limit = 25; // 必要に応じて変更
+          _playerDeck = ownedIds.take(limit).toList();
+
+          // users.deck に保存（ドキュメントがない場合でも merge で作成）
+          await userRef.set({'deck': _playerDeck}, SetOptions(merge: true));
+        }
+      }
+
+      // deck に基づいてカードデータを取得
+      for (var cardId in _playerDeck) {
+        if (cardId > 0) {
+          final cardDoc = await FirebaseFirestore.instance
+              .collection('cards')
+              .where('id', isEqualTo: cardId)
+              .limit(1)
+              .get();
+          if (cardDoc.docs.isNotEmpty) {
+            _deckCards.add(cardDoc.docs.first.data());
           }
         }
-
-        setState(() {
-          _isDeckLoaded = true;
-        });
       }
+
+      setState(() {
+        _isDeckLoaded = true;
+      });
     } catch (e) {
       setState(() {
         infoText = 'デッキの読み込みエラー: $e';

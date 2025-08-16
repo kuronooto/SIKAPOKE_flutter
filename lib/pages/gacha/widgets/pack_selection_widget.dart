@@ -1,5 +1,7 @@
 import 'dart:math';
 import 'package:flutter/material.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 import '../../../viewmodels/gacha_view_model.dart';
 import '../../../models/pack_model.dart'; // PackModelをインポート
 import 'gacha_utils.dart';
@@ -47,6 +49,9 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
   // アニメーション用コントローラ
   late AnimationController _rotationController;
   late AnimationController _selectionAnimController;
+
+  // 追加: Functions
+  late final FirebaseFunctions _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
 
   @override
   void initState() {
@@ -100,6 +105,13 @@ class _PackSelectionWidgetState extends State<PackSelectionWidget>
 
     _rotationController.repeat(); // 常に更新
     _oldSelectedIndex = widget.viewModel.selectedPackIndex;
+
+    // エミュレータ
+    if (kDebugMode) {
+      try {
+        _functions.useFunctionsEmulator('localhost', 5001);
+      } catch (_) {}
+    }
   }
 
   @override

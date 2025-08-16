@@ -2,6 +2,8 @@ import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import '../widgets/common/card.dart';
+import 'package:cloud_functions/cloud_functions.dart';
+import 'package:flutter/foundation.dart';
 
 class RoomPage extends StatefulWidget {
   final String roomId;
@@ -52,16 +54,33 @@ class _RoomPageState extends State<RoomPage> {
   // バトルログ
   List<BattleLogItem> battleLogs = [];
 
+  // 追加: Functions/同期関連の状態
+  late final FirebaseFunctions _functions;
+  int? _roomVersion; // Firestoreのversion
+  int? _lastEndTurnCalledForTurn; // このターンでendTurnを1回だけ呼ぶためのガード
+  int? _lastBattleDialogShownTurn; // バトル結果ダイアログの多重表示防止
+  bool _gameOverShown = false; // ゲーム終了ダイアログの多重表示防止
+  String? _roomStatus;         // 追加: 直近のroom_status
+  String? _lastWinnerId;       // 追加: 直近のwinner_id
+
   @override
   void initState() {
     super.initState();
+
+    _functions = FirebaseFunctions.instanceFor(region: 'us-central1');
+
+    // 追加: main と同じ判定でエミュを使用
+    const useEmu = bool.fromEnvironment('USE_FIREBASE_EMULATOR', defaultValue: kDebugMode);
+    if (useEmu) {
+      try { _functions.useFunctionsEmulator('localhost', 5001); } catch (_) {}
+      try { FirebaseFirestore.instance.useFirestoreEmulator('localhost', 8080); } catch (_) {}
+      try { FirebaseAuth.instance.useAuthEmulator('localhost', 9099); } catch (_) {} // 追加
+    }
+
     _initializeGameState();
     _fetchPlayerDeck();
     _listenToGameState();
-
-    Future.delayed(const Duration(milliseconds: 500), () {
-      _showPlayerInfoDialog();
-    });
+    Future.delayed(const Duration(milliseconds: 500), () { _showPlayerInfoDialog(); });
   }
 
   @override
@@ -73,47 +92,9 @@ class _RoomPageState extends State<RoomPage> {
 
   Future<void> _handleRoomExit() async {
     try {
-      final roomRef = FirebaseFirestore.instance
-          .collection('rooms')
-          .doc(widget.roomId);
-
-      final roomSnapshot = await roomRef.get();
-      if (!roomSnapshot.exists) return;
-
-      final data = roomSnapshot.data();
-      if (data == null) return;
-
-      // 部屋のステータスが 'finished' なら何もしない
-      if (data['room_status'] == 'finished') return;
-
-      final currentUserId = FirebaseAuth.instance.currentUser?.uid;
-
-      // 部屋の状態に応じて処理
-      if (currentUserId == widget.player1Id) {
-        // 相手がいなければ削除、いれば自分のIDをnullに
-        if (data['player2_id'] == null) {
-          await roomRef.delete();
-          print('Player1が退出: 部屋を削除しました');
-        } else {
-          await roomRef.update({
-            'player1_id': null,
-            'room_status': 'player1_left',
-          });
-          print('Player1が退出: player1_idをnullに設定');
-        }
-      } else if (currentUserId == widget.player2Id) {
-        // 相手がいなければ削除、いれば自分のIDをnullに
-        if (data['player1_id'] == null) {
-          await roomRef.delete();
-          print('Player2が退出: 部屋を削除しました');
-        } else {
-          await roomRef.update({
-            'player2_id': null,
-            'room_status': 'player2_left',
-          });
-          print('Player2が退出: player2_idをnullに設定');
-        }
-      }
+      // Functions 経由で安全に退室
+      await _functions.httpsCallable('leaveRoom').call({'roomId': widget.roomId});
+      print('leaveRoom 呼び出し完了: ${widget.roomId}');
     } catch (e) {
       print('部屋の退出処理エラー: $e');
     }
@@ -149,27 +130,22 @@ class _RoomPageState extends State<RoomPage> {
       if (userSnapshot.exists) {
         final deckData = userSnapshot.data()?['deck'];
         if (deckData != null) {
+          final ids = List<int>.from(deckData).where((id) => id > 0).toList();
           setState(() {
-            playerDeck = List<int>.from(deckData);
+            playerDeck = ids;
           });
 
-          // デッキの各カードの情報を取得
-          for (var cardId in playerDeck) {
-            if (cardId > 0) {
-              final cardSnapshot =
-                  await FirebaseFirestore.instance
-                      .collection('cards')
-                      .where('id', isEqualTo: cardId)
-                      .limit(1)
-                      .get();
-
-              if (cardSnapshot.docs.isNotEmpty) {
-                deckCards.add(cardSnapshot.docs.first.data());
-              }
-            }
+          // 修正: Functions 経由で一括取得
+          try {
+            final res = await _functions.httpsCallable('fetchCardsByIds').call({'ids': ids});
+            final data = (res.data as Map)['cards'] as List<dynamic>? ?? const [];
+            setState(() {
+              deckCards = data.map((e) => Map<String, dynamic>.from(e as Map)).toList();
+            });
+          } catch (e) {
+            // 失敗時は空のまま（UIは「デッキが空です」を表示）
+            debugPrint('fetchCardsByIds for deck error: $e');
           }
-
-          setState(() {});
         }
       }
     } catch (e) {
@@ -198,9 +174,12 @@ class _RoomPageState extends State<RoomPage> {
       final data = snapshot.data();
 
       if (data != null) {
+        // 追加: version を保持（endTurnのexpectVersionに使用）
+        _roomVersion = (data['version'] as int?) ?? 0;
+
         final gameState = data['game_state'] as Map<String, dynamic>;
 
-        // 重要: Firestoreのデータを常に信頼し、ローカルステートを上書きする
+        // Firestoreの状態で上書き
         final newPlayer1Points = gameState['player1_point'] as int? ?? 0;
         final newPlayer2Points = gameState['player2_point'] as int? ?? 0;
         final newPlayer1OMP = gameState['player1_over_mount'] as int? ?? 0;
@@ -218,7 +197,6 @@ class _RoomPageState extends State<RoomPage> {
           );
         }
 
-        // 必ずFirestoreの値でローカルステートを更新
         setState(() {
           turn = newTurn;
           player1Points = newPlayer1Points;
@@ -234,39 +212,38 @@ class _RoomPageState extends State<RoomPage> {
           }
         });
 
-        // スコアを確認して勝敗判定を行う（両プレイヤー側で実行）
-        if (player1Points >= 3 ||
-            player2Points >= 3 ||
-            player1OMP > 100 ||
-            player2OMP > 100) {
-          print(
-            '勝敗判定条件を満たしています: P1=$player1Points, P2=$player2Points, P1OMP=$player1OMP, P2OMP=$player2OMP',
-          );
+        // 追加: 最新の room_status / winner_id を保持
+        _roomStatus = data['room_status'] as String?;
+        _lastWinnerId = data['winner_id'] as String?;
 
-          // 勝敗判定の呼び出しを遅延させ、Firestoreの更新が完了するのを待つ
-          Future.delayed(const Duration(milliseconds: 500), () {
-            if (mounted) {
-              _checkGameOver();
-            }
-          });
+        // 変更: バトル結果ダイアログ表示中は終了ダイアログを即時に出さず、後で出す
+        if (_roomStatus == 'finished' && !_gameOverShown && !isTurnProcessing) {
+          _gameOverShown = true;
+          final winnerId = _lastWinnerId;
+          final amIWinner = winnerId != null &&
+              ((isPlayer1 && winnerId == widget.player1Id) ||
+               (!isPlayer1 && winnerId == widget.player2Id));
+          final resultText = amIWinner ? 'あなたの勝ち！' : '相手の勝ち';
+          if (mounted) {
+            _showGameOverDialog(resultText);
+          }
         }
 
-        // 両プレイヤーがカードを選択した時の処理
+        // 両プレイヤーがカード選択済み -> ターン解決
         if (gameState['player1_card'] != null &&
-            gameState['player2_card'] != null &&
-            !isTurnProcessing) {
-          setState(() {
-            isTurnProcessing = true;
-          });
+            gameState['player2_card'] != null) {
+          final currentTurn = gameState['turn'] as int? ?? 1;
 
-          // 非同期処理を別メソッドに分離し、awaitせずに呼び出し
-          _handleCardSelection(
-            gameState['player1_card'],
-            gameState['player2_card'],
-          );
+          // このターンでまだダイアログを出していなければ解決処理開始
+          if (_lastBattleDialogShownTurn != currentTurn) {
+            setState(() {
+              isTurnProcessing = true;
+            });
+            _resolveTurn(currentTurn, gameState);
+          }
         }
 
-        // カードが両方nullになった場合（次のターン準備完了）
+        // 次ターン準備（サーバーで解決後、カードはnullに戻る）
         if (gameState['player1_card'] == null &&
             gameState['player2_card'] == null) {
           setState(() {
@@ -287,348 +264,215 @@ class _RoomPageState extends State<RoomPage> {
     });
   }
 
-  // カード選択処理を別メソッドに分離
-  void _handleCardSelection(int player1CardId, int player2CardId) async {
-    // カード情報を取得
-    final player1CardData = await _fetchCardData(player1CardId);
-    final player2CardData = await _fetchCardData(player2CardId);
+  // 追加: ターン解決（P1のみendTurn呼び出し、両者ともバトル結果は表示）
+  Future<void> _resolveTurn(int currentTurn, Map<String, dynamic> gs) async {
+    final p1Id = gs['player1_card'] as int;
+    final p2Id = gs['player2_card'] as int;
 
-    // カードデータをローカル変数に保持
-    Map<String, dynamic> myCard;
-    Map<String, dynamic> opponentCard;
+    // カードデータ取得
+    final p1Card = await _fetchCardData(p1Id);
+    final p2Card = await _fetchCardData(p2Id);
 
-    if (isPlayer1) {
-      myCard = player1CardData;
-      opponentCard = player2CardData;
-    } else {
-      myCard = player2CardData;
-      opponentCard = player1CardData;
-    }
-
-    // 状態を更新
+    // 表示用に反映
     if (mounted) {
       setState(() {
-        selectedCardData = myCard;
-        opponentCardData = opponentCard;
+        selectedCardData = isPlayer1 ? p1Card : p2Card;
+        opponentCardData = isPlayer1 ? p2Card : p1Card;
       });
     }
 
-    // 非同期処理を呼び出し（awaitなし）
-    _processTurn(player1CardData, player2CardData);
-  }
+    // P1のみサーバーにendTurn（多重防止）
+    if (isPlayer1 && _lastEndTurnCalledForTurn != currentTurn) {
+      final actionId = DateTime.now().microsecondsSinceEpoch.toString();
+      try {
+        final result = await _functions.httpsCallable('endTurn').call({
+          'roomId': widget.roomId,
+          'clientActionId': actionId,
+          'expectVersion': _roomVersion,
+        });
 
-  Future<Map<String, dynamic>> _fetchCardData(int cardId) async {
-    try {
-      final cardSnapshot =
-          await FirebaseFirestore.instance
-              .collection('cards')
-              .where('id', isEqualTo: cardId)
-              .limit(1)
-              .get();
+        final d = Map<String, dynamic>.from(result.data as Map);
+        final summary = Map<String, dynamic>.from(d['summary'] as Map? ?? {});
+        final p1Final = (summary['p1Final'] as num?)?.toInt() ?? (p1Card['power'] as int? ?? 0);
+        final p2Final = (summary['p2Final'] as num?)?.toInt() ?? (p2Card['power'] as int? ?? 0);
+        final resultKey = summary['result'] as String?; // 'p1'|'p2'|'draw'
+        final resultText = _resultTextFromKey(resultKey);
 
-      if (cardSnapshot.docs.isNotEmpty) {
-        return cardSnapshot.docs.first.data();
+        // ログ追加（このクライアントで1回のみ）
+        setState(() {
+          battleLogs.add(
+            BattleLogItem(
+              turn: currentTurn,
+              player1Card: p1Card['name'] as String? ?? 'カード',
+              player2Card: p2Card['name'] as String? ?? 'カード',
+              player1Power: p1Card['power'] as int? ?? 0,
+              player2Power: p2Card['power'] as int? ?? 0,
+              player1FinalPower: p1Final,
+              player2FinalPower: p2Final,
+              player1TypeAdvantage: p1Final > (p1Card['power'] as int? ?? 0),
+              player2TypeAdvantage: p2Final > (p2Card['power'] as int? ?? 0),
+              result: resultText,
+            ),
+          );
+        });
+
+        await _showBattleResultDialog(
+          p1Card,
+          p2Card,
+          p1Final,
+          p2Final,
+          resultText,
+        );
+        // 追加: バトル結果を閉じた直後に、終了状態なら終了ダイアログを出す
+        _maybeShowGameOverAfterBattle();
+      } catch (e) {
+        // 失敗時はローカル計算
+        final comp = _computeLocal(p1Card, p2Card);
+        setState(() {
+          battleLogs.add(
+            BattleLogItem(
+              turn: currentTurn,
+              player1Card: p1Card['name'] as String? ?? 'カード',
+              player2Card: p2Card['name'] as String? ?? 'カード',
+              player1Power: p1Card['power'] as int? ?? 0,
+              player2Power: p2Card['power'] as int? ?? 0,
+              player1FinalPower: comp.$1,
+              player2FinalPower: comp.$2,
+              player1TypeAdvantage: comp.$1 > (p1Card['power'] as int? ?? 0),
+              player2TypeAdvantage: comp.$2 > (p2Card['power'] as int? ?? 0),
+              result: comp.$3,
+            ),
+          );
+        });
+        await _showBattleResultDialog(
+          p1Card,
+          p2Card,
+          comp.$1,
+          comp.$2,
+          comp.$3,
+        );
+      } finally {
+        _lastEndTurnCalledForTurn = currentTurn;
+        _lastBattleDialogShownTurn = currentTurn;
       }
-    } catch (e) {
-      print('カード情報取得エラー: $e');
-    }
+    } else {
+      // P2は表示のみ（サーバー更新はP1）
+      final comp = _computeLocal(p1Card, p2Card);
 
-    // デフォルト値
-    return {
-      'id': cardId,
-      'name': 'カード #$cardId',
-      'type': 'unknown',
-      'power': 0,
-      'rank': 'E',
-    };
+      // ログ追加（このクライアントで1回のみ）
+      setState(() {
+        battleLogs.add(
+          BattleLogItem(
+            turn: currentTurn,
+            player1Card: p1Card['name'] as String? ?? 'カード',
+            player2Card: p2Card['name'] as String? ?? 'カード',
+            player1Power: p1Card['power'] as int? ?? 0,
+            player2Power: p2Card['power'] as int? ?? 0,
+            player1FinalPower: comp.$1,
+            player2FinalPower: comp.$2,
+            player1TypeAdvantage: comp.$1 > (p1Card['power'] as int? ?? 0),
+            player2TypeAdvantage: comp.$2 > (p2Card['power'] as int? ?? 0),
+            result: comp.$3,
+          ),
+        );
+      });
+
+      await _showBattleResultDialog(
+        p1Card,
+        p2Card,
+        comp.$1,
+        comp.$2,
+        comp.$3,
+      );
+      // 追加: バトル結果を閉じた直後に終了ダイアログを出す（必要なら）
+      _maybeShowGameOverAfterBattle();
+
+      _lastBattleDialogShownTurn = currentTurn;
+    }
   }
 
+  // 追加: バトル結果後の終了ダイアログ表示フォールバック
+  void _maybeShowGameOverAfterBattle() {
+    if (!mounted) return;
+    if (_roomStatus == 'finished' && !_gameOverShown) {
+      _gameOverShown = true;
+      final winnerId = _lastWinnerId;
+      final amIWinner = winnerId != null &&
+          ((isPlayer1 && winnerId == widget.player1Id) ||
+           (!isPlayer1 && winnerId == widget.player2Id));
+      final resultText = amIWinner ? 'あなたの勝ち！' : '相手の勝ち';
+      _showGameOverDialog(resultText);
+    }
+  }
+
+  // 追加: ローカル計算（表示用のみ、サーバーに依存しない）
+  (int, int, String) _computeLocal(Map<String, dynamic> p1, Map<String, dynamic> p2) {
+    final p1Pow = p1['power'] as int? ?? 0;
+    final p2Pow = p2['power'] as int? ?? 0;
+    final p1Type = p1['type'] as String? ?? '';
+    final p2Type = p2['type'] as String? ?? '';
+
+    int p1Final = p1Pow;
+    int p2Final = p2Pow;
+    if (typeWeakness[p1Type] == p2Type) p1Final *= 2;
+    if (typeWeakness[p2Type] == p1Type) p2Final *= 2;
+
+    String result;
+    if (p1Final > p2Final) {
+      result = 'プレイヤー1の勝ち';
+    } else if (p1Final < p2Final) {
+      result = 'プレイヤー2の勝ち';
+    } else {
+      result = '引き分け';
+    }
+    return (p1Final, p2Final, result);
+  }
+
+  // 追加: 関数キーから人間向けテキストへ
+  String _resultTextFromKey(String? key) {
+    switch (key) {
+      case 'p1':
+        return 'プレイヤー1の勝ち';
+      case 'p2':
+        return 'プレイヤー2の勝ち';
+      default:
+        return '引き分け';
+    }
+  }
+
+  // 変更: 旧クライアント更新ロジックを廃止し、表示専用に
   void _processTurn(
     Map<String, dynamic> player1CardData,
     Map<String, dynamic> player2CardData,
   ) {
-    final player1CardPower = player1CardData['power'] as int? ?? 0;
-    final player2CardPower = player2CardData['power'] as int? ?? 0;
-
-    final player1CardType = player1CardData['type'] as String? ?? '';
-    final player2CardType = player2CardData['type'] as String? ?? '';
-
-    // 相性による倍率を計算
-    int player1FinalPower = player1CardPower;
-    int player2FinalPower = player2CardPower;
-
-    bool player1HasTypeAdvantage = false;
-    bool player2HasTypeAdvantage = false;
-
-    if (typeWeakness[player1CardType] == player2CardType) {
-      player1FinalPower *= 2;
-      player1HasTypeAdvantage = true;
-    }
-
-    if (typeWeakness[player2CardType] == player1CardType) {
-      player2FinalPower *= 2;
-      player2HasTypeAdvantage = true;
-    }
-
-    // 勝敗を判定
-    String turnResult = '';
-    int player1PointsDelta = 0;
-    int player2PointsDelta = 0;
-    int player1OMPDelta = 0;
-    int player2OMPDelta = 0;
-
-    if (player1FinalPower > player2FinalPower) {
-      player1PointsDelta = 1;
-      player2OMPDelta = player1FinalPower - player2FinalPower;
-      turnResult = 'プレイヤー1の勝ち';
-    } else if (player1FinalPower < player2FinalPower) {
-      player2PointsDelta = 1;
-      player1OMPDelta = player2FinalPower - player1FinalPower;
-      turnResult = 'プレイヤー2の勝ち';
-    } else {
-      turnResult = '引き分け';
-    }
-
-    // バトルログに追加
+    final comp = _computeLocal(player1CardData, player2CardData);
+    // バトルログを残す（表示用）
     battleLogs.add(
       BattleLogItem(
         turn: turn,
         player1Card: player1CardData['name'] as String? ?? 'カード',
         player2Card: player2CardData['name'] as String? ?? 'カード',
-        player1Power: player1CardPower,
-        player2Power: player2CardPower,
-        player1FinalPower: player1FinalPower,
-        player2FinalPower: player2FinalPower,
-        player1TypeAdvantage: player1HasTypeAdvantage,
-        player2TypeAdvantage: player2HasTypeAdvantage,
-        result: turnResult,
+        player1Power: player1CardData['power'] as int? ?? 0,
+        player2Power: player2CardData['power'] as int? ?? 0,
+        player1FinalPower: comp.$1,
+        player2FinalPower: comp.$2,
+        player1TypeAdvantage: comp.$1 > (player1CardData['power'] as int? ?? 0),
+        player2TypeAdvantage: comp.$2 > (player2CardData['power'] as int? ?? 0),
+        result: comp.$3,
       ),
     );
 
-    // バトル結果をダイアログ表示し、その後にFirestoreを更新する
+    // 表示のみ（サーバーがスコア・ターンを更新）
     _showBattleResultDialog(
       player1CardData,
       player2CardData,
-      player1FinalPower,
-      player2FinalPower,
-      turnResult,
-    ).then((_) {
-      // ダイアログが閉じられた後の処理
-      _updateScoresInFirestore(
-        player1PointsDelta,
-        player2PointsDelta,
-        player1OMPDelta,
-        player2OMPDelta,
-      );
-    });
-  }
-
-  // スコアをFirestoreに更新する（_processTurnから切り出した処理）
-  void _updateScoresInFirestore(
-    int player1PointsDelta,
-    int player2PointsDelta,
-    int player1OMPDelta,
-    int player2OMPDelta,
-  ) async {
-    // Firestoreを更新（プレイヤー1のみが更新）
-    if (isPlayer1) {
-      try {
-        final roomRef = FirebaseFirestore.instance
-            .collection('rooms')
-            .doc(widget.roomId);
-
-        // 現在の状態を取得して更新（競合を防ぐ）
-        final roomSnapshot = await roomRef.get();
-        if (!roomSnapshot.exists) return;
-
-        final data = roomSnapshot.data();
-        if (data == null) return;
-
-        final currentGameState = data['game_state'] as Map<String, dynamic>;
-
-        // 現在のポイントを取得
-        final currentP1Points = currentGameState['player1_point'] as int? ?? 0;
-        final currentP2Points = currentGameState['player2_point'] as int? ?? 0;
-        final currentP1OMP =
-            currentGameState['player1_over_mount'] as int? ?? 0;
-        final currentP2OMP =
-            currentGameState['player2_over_mount'] as int? ?? 0;
-
-        // 新しい値を計算
-        final newP1Points = currentP1Points + player1PointsDelta;
-        final newP2Points = currentP2Points + player2PointsDelta;
-        final newP1OMP = currentP1OMP + player1OMPDelta;
-        final newP2OMP = currentP2OMP + player2OMPDelta;
-
-        print(
-          'スコア更新: P1: $currentP1Points → $newP1Points, P2: $currentP2Points → $newP2Points',
-        );
-        print(
-          'OMP更新: P1: $currentP1OMP → $newP1OMP, P2: $currentP2OMP → $newP2OMP',
-        );
-
-        // Firestoreを更新
-        await roomRef.update({
-          'game_state.player1_point': newP1Points,
-          'game_state.player2_point': newP2Points,
-          'game_state.player1_over_mount': newP1OMP,
-          'game_state.player2_over_mount': newP2OMP,
-          'game_state.turn': turn + 1,
-          'game_state.player1_card': null,
-          'game_state.player2_card': null,
-        });
-
-        // ローカルステートを更新（Firestoreに合わせる）
-        setState(() {
-          player1Points = newP1Points;
-          player2Points = newP2Points;
-          player1OMP = newP1OMP;
-          player2OMP = newP2OMP;
-        });
-      } catch (e) {
-        print('Firestore更新エラー: $e');
-      }
-    }
-
-    // 勝敗判定は_listenToGameState内で行う（両方のクライアントで実行される）
-  }
-
-  Future<void> _checkGameOver() async {
-    print(
-      '勝敗判定: P1=$player1Points, P2=$player2Points, P1OMP=$player1OMP, P2OMP=$player2OMP',
-    );
-    String? gameOverResult;
-    bool isGameOver = false;
-
-    // 勝利条件: 3ポイント先取
-    if (player1Points >= 3) {
-      gameOverResult = isPlayer1 ? 'あなたの勝ち！' : '相手の勝ち';
-      isGameOver = true;
-      print('プレイヤー1が3ポイント達成: $player1Points');
-    } else if (player2Points >= 3) {
-      gameOverResult = isPlayer1 ? '相手の勝ち' : 'あなたの勝ち！';
-      isGameOver = true;
-      print('プレイヤー2が3ポイント達成: $player2Points');
-    }
-    // 敗北条件: OMP 100超過
-    else if (player1OMP > 100) {
-      gameOverResult = isPlayer1 ? 'あなたの勝ち！ (相手のOMP超過)' : 'あなたの負け！ (あなたのOMP超過)';
-      isGameOver = true;
-      print('プレイヤー1のOMPが100超過: $player1OMP');
-    } else if (player2OMP > 100) {
-      gameOverResult = isPlayer1 ? 'あなたの負け！ (あなたのOMP超過)' : 'あなたの勝ち (相手のOMP超過)';
-      isGameOver = true;
-      print('プレイヤー2のOMPが100超過: $player2OMP');
-    }
-
-    if (isGameOver && gameOverResult != null) {
-      print('ゲーム終了条件を満たしました: $gameOverResult');
-
-      // 重要: プレイヤー1のみがroom_statusをfinishedに更新
-      if (isPlayer1) {
-        try {
-          print('プレイヤー1がroom_statusをfinishedに更新します');
-
-          // 部屋データを取得して現在のステータスを確認
-          final roomRef = FirebaseFirestore.instance
-              .collection('rooms')
-              .doc(widget.roomId);
-
-          final roomSnapshot = await roomRef.get();
-          if (!roomSnapshot.exists) return;
-
-          final data = roomSnapshot.data();
-          if (data == null) return;
-
-          // 部屋が既にfinished状態でなければ更新
-          if (data['room_status'] != 'finished') {
-            await roomRef.update({
-              'room_status': 'finished',
-              'winner_id':
-                  player1Points >= 3 || player2OMP > 100
-                      ? widget.player1Id
-                      : widget.player2Id,
-              'finished_at': FieldValue.serverTimestamp(),
-            });
-            print('部屋のステータスをfinishedに更新しました');
-          }
-        } catch (e) {
-          print('ゲーム終了状態の更新エラー: $e');
-        }
-      }
-
-      // スコア不整合を防ぐための遅延を入れる
-      await Future.delayed(const Duration(milliseconds: 300));
-
-      // ゲーム終了ダイアログを表示（この時点でスコアが正しく同期されているはず）
-      if (mounted) {
-        _showGameOverDialog(gameOverResult);
-      }
-    } else {
-      print('ゲーム継続中: 勝利条件を満たしていません');
-    }
-  }
-
-  void _showGameOverDialog(String result) {
-    if (!mounted) return;
-
-    // 既にダイアログが表示されていないか確認
-    bool isDialogShowing = false;
-    if (ModalRoute.of(context)?.isCurrent != true) {
-      isDialogShowing = true;
-    }
-
-    if (isDialogShowing) {
-      print('ゲーム終了ダイアログは既に表示されています');
-      return;
-    }
-
-    showDialog(
-      context: context,
-      barrierDismissible: false,
-      builder: (context) {
-        return AlertDialog(
-          title: const Text('ゲーム終了'),
-          content: Column(
-            mainAxisSize: MainAxisSize.min,
-            children: [
-              Icon(
-                result.contains('勝ち')
-                    ? Icons.emoji_events
-                    : Icons.sentiment_dissatisfied,
-                size: 64,
-                color: result.contains('勝ち') ? Colors.amber : Colors.grey,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                result,
-                style: const TextStyle(
-                  fontSize: 24,
-                  fontWeight: FontWeight.bold,
-                ),
-                textAlign: TextAlign.center,
-              ),
-              const SizedBox(height: 16),
-              Text(
-                'スコア: ${isPlayer1 ? player1Points : player2Points} - ${isPlayer1 ? player2Points : player1Points}',
-                style: const TextStyle(fontSize: 18),
-              ),
-            ],
-          ),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop(); // ダイアログを閉じる
-                Navigator.of(context).pop(); // ルームページを閉じる
-              },
-              child: const Text('終了する'),
-            ),
-          ],
-        );
-      },
+      comp.$1,
+      comp.$2,
+      comp.$3,
     );
   }
 
+  // 変更: 旧の「カード選択後に計算＋Firestore更新」を廃止し、選択送信のみ
   void _selectCard(int cardId, Map<String, dynamic> cardData) async {
     if (isWaitingForOpponent || isTurnProcessing || selectedCardId != null) {
       return;
@@ -640,16 +484,61 @@ class _RoomPageState extends State<RoomPage> {
       isWaitingForOpponent = true;
     });
 
-    // Firestore に選択したカードを送信
-    final roomRef = FirebaseFirestore.instance
-        .collection('rooms')
-        .doc(widget.roomId);
-
-    if (isPlayer1) {
-      await roomRef.update({'game_state.player1_card': cardId});
-    } else {
-      await roomRef.update({'game_state.player2_card': cardId});
+    try {
+      // Cloud Functions 経由で選択を送信
+      await _functions.httpsCallable('selectCard').call({
+        'roomId': widget.roomId,
+        'cardId': cardId,
+      });
+    } catch (e) {
+      // 失敗時は元に戻す
+      if (mounted) {
+        setState(() {
+          selectedCardId = null;
+          selectedCardData = null;
+          isWaitingForOpponent = false;
+        });
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('カード送信に失敗しました')),
+        );
+      }
     }
+  }
+
+  // 変更: 旧の「カード選択時に即座に処理」→ 表示用のデータ反映のみ
+  void _handleCardSelection(int player1CardId, int player2CardId) async {
+    final player1CardData = await _fetchCardData(player1CardId);
+    final player2CardData = await _fetchCardData(player2CardId);
+
+    if (mounted) {
+      setState(() {
+        selectedCardData = isPlayer1 ? player1CardData : player2CardData;
+        opponentCardData = isPlayer1 ? player2CardData : player1CardData;
+      });
+    }
+    // 解決は _resolveTurn 側で実施
+  }
+
+  Future<Map<String, dynamic>> _fetchCardData(int cardId) async {
+    try {
+      // 修正: 単体でも Functions の一括取得APIを使う
+      final res = await _functions.httpsCallable('fetchCardsByIds').call({'ids': [cardId]});
+      final list = (res.data as Map)['cards'] as List<dynamic>? ?? const [];
+      if (list.isNotEmpty) {
+        return Map<String, dynamic>.from(list.first as Map);
+      }
+    } catch (e) {
+      debugPrint('fetchCardsByIds(single) error: $e');
+    }
+
+    // デフォルト（取得失敗時）
+    return {
+      'id': cardId,
+      'name': 'カード #$cardId',
+      'type': 'unknown',
+      'power': 0,
+      'rank': 'E',
+    };
   }
 
   Future<void> _showBattleResultDialog(
@@ -969,6 +858,55 @@ class _RoomPageState extends State<RoomPage> {
                 Navigator.of(context).pop();
               },
               child: const Text('了解'),
+            ),
+          ],
+        );
+      },
+    );
+  }
+
+  // 追加: ゲーム終了ダイアログ（Roomのroom_status=finished時に1回だけ表示）
+  void _showGameOverDialog(String result) {
+    if (!mounted) return;
+
+    final myScore = isPlayer1 ? player1Points : player2Points;
+    final oppScore = isPlayer1 ? player2Points : player1Points;
+
+    showDialog(
+      context: context,
+      barrierDismissible: false,
+      builder: (context) {
+        final isWin = result.contains('勝ち');
+        return AlertDialog(
+          title: const Text('ゲーム終了'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              Icon(
+                isWin ? Icons.emoji_events : Icons.sentiment_dissatisfied,
+                size: 64,
+                color: isWin ? Colors.amber : Colors.grey,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                result,
+                style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold),
+                textAlign: TextAlign.center,
+              ),
+              const SizedBox(height: 16),
+              Text(
+                'スコア: $myScore - $oppScore',
+                style: const TextStyle(fontSize: 18),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () {
+                Navigator.of(context).pop();  // ダイアログを閉じる
+                Navigator.of(context).pop();  // ルームページを閉じる
+              },
+              child: const Text('終了する'),
             ),
           ],
         );
@@ -1323,7 +1261,7 @@ class _RoomPageState extends State<RoomPage> {
   }
 }
 
-// バトルログ用のクラス
+// バトルログ用のクラス（トップレベルに1つだけ定義）
 class BattleLogItem {
   final int turn;
   final String player1Card;
