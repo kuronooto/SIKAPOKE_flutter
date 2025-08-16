@@ -10,52 +10,67 @@ class CardGachaService {
 
   // パックレアリティに応じたカードの取得確率を設定
   final Map<int, Map<String, int>> _rarityProbability = {
-    1: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    2: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    3: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
-    4: {'S': 5, 'A': 10, 'B': 15, 'C': 30, 'D': 40},
+    1: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
+    2: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
+    3: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
+    4: {'S': 10, 'A': 15, 'B': 20, 'C': 25, 'D': 30},
   };
 
   // Firestoreからカードをランク別にランダム取得
   Future<CardResult> getRandomCard(int packRarityLevel) async {
-    try {
-      // パックのレアリティに基づいてカードのランクを決定
-      String cardRank = _determineCardRank(packRarityLevel);
-
-      // 指定したランクのカードを全て取得
-      QuerySnapshot cardSnapshot =
-          await _firestore
-              .collection('cards')
-              .where('rank', isEqualTo: cardRank)
-              .get();
+    if (packRarityLevel == 5) {
+      // 新カード限定パック
+      QuerySnapshot cardSnapshot = await _firestore
+          .collection('cards')
+          .where('id', whereIn: [201, 202, 203, 204])
+          .get();
 
       if (cardSnapshot.docs.isEmpty) {
-        // カードが見つからない場合は代替カードを返す
-        return _createFallbackCard(cardRank);
+        return _createFallbackCard('S');
       }
 
-      // ランダムにカードを1枚選択
       int randomIndex = _random.nextInt(cardSnapshot.docs.length);
       DocumentSnapshot cardDoc = cardSnapshot.docs[randomIndex];
       Map<String, dynamic> cardData = cardDoc.data() as Map<String, dynamic>;
 
-      // カード結果を生成
       CardResult result = CardResult(
         id: cardDoc.id,
         name: cardData['name'] ?? 'Unknown Card',
-        imagePath:
-            'assets/images/cards/card_${_getRarityLevel(cardRank)}_${_random.nextInt(3)}.png',
-        rarityLevel: _getRarityLevel(cardRank),
-        description: _generateCardDescription(cardData),
+        imagePath: 'assets/images/cards/card_5_0.png',
+        rarityLevel: 5,
+        description: cardData['description'] ?? _generateCardDescription(cardData),
       );
 
-      // ユーザーがログインしている場合、カードを所有カードリストに追加
       await _addCardToUserCollection(cardData['id']?.toString() ?? '0');
-
       return result;
-    } catch (e) {
-      print('カード取得エラー: $e');
-      return _createFallbackCard('C'); // エラー時はフォールバックカード
+    } else {
+      // パックのレアリティに基づいてカードのランクを決定
+      String cardRank = _determineCardRank(packRarityLevel);
+
+      // 指定したランクのカードを全て取得
+      QuerySnapshot cardSnapshot = await _firestore
+          .collection('cards')
+          .where('rank', isEqualTo: cardRank)
+          .get();
+
+      if (cardSnapshot.docs.isEmpty) {
+        return _createFallbackCard(cardRank);
+      }
+
+      int randomIndex = _random.nextInt(cardSnapshot.docs.length);
+      DocumentSnapshot cardDoc = cardSnapshot.docs[randomIndex];
+      Map<String, dynamic> cardData = cardDoc.data() as Map<String, dynamic>;
+
+      CardResult result = CardResult(
+        id: cardDoc.id,
+        name: cardData['name'] ?? 'Unknown Card',
+        imagePath: 'assets/images/cards/card_${_getRarityLevel(cardRank)}_${_random.nextInt(3)}.png',
+        rarityLevel: _getRarityLevel(cardRank),
+        description: cardData['description'] ?? _generateCardDescription(cardData),
+      );
+
+      await _addCardToUserCollection(cardData['id']?.toString() ?? '0');
+      return result;
     }
   }
 

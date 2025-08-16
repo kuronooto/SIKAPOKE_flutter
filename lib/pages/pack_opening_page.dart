@@ -80,7 +80,7 @@ class PackOpeningPage extends StatelessWidget {
                       borderRadius: BorderRadius.circular(20),
                     ),
                     child: const Text(
-                      '「最強の資格」「資格のある島」「時空の資格」「超克の資格」',
+                      '「最強の資格」「資格のある島」「時空の資格」「超克の資格」　？？？',
                       style: TextStyle(
                         fontSize: 14,
                         color: Colors.deepPurple,
@@ -130,6 +130,13 @@ class PackOpeningPage extends StatelessWidget {
                     3,
                     screenWidth,
                   ),
+                  _buildPackCard(
+      context,
+      Colors.green.shade700, // 新パック用の色
+      '存在しない資格',    // 新パック名
+      4,                      // packTypeIndex（新パック用のインデックス）
+      screenWidth,
+    ),
                 ],
               ),
             ),
