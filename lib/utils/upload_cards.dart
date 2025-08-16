@@ -697,11 +697,12 @@ class DataUploadPage extends StatelessWidget {
   ];
 
   Future<void> uploadData() async {
-    final collection = FirebaseFirestore.instance.collection('cards');
-    for (var card in cards) {
-      await collection.add(card);
-    }
+  final collection = FirebaseFirestore.instance.collection('cards');
+  for (var card in cards) {
+    // ここでidをドキュメントIDとして上書き保存
+    await collection.doc(card['id'].toString()).set(card);
   }
+}
 
   @override
   Widget build(BuildContext context) {

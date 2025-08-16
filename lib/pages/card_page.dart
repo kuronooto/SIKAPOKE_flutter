@@ -305,24 +305,24 @@ class CardPage extends StatelessWidget {
                 mainAxisAlignment: MainAxisAlignment.spaceEvenly,
                 children: [
                   // レアリティ表示
-                  Container(
-                    padding: const EdgeInsets.symmetric(
-                      horizontal: 5,
-                      vertical: 1,
-                    ),
-                    decoration: BoxDecoration(
-                      color: _getRarityColor(rank).withOpacity(0.8),
-                      borderRadius: BorderRadius.circular(15),
-                    ),
-                    child: Text(
-                      _getRarityText(rank),
-                      style: const TextStyle(
-                        color: Colors.white,
-                        fontWeight: FontWeight.bold,
-                        fontSize: 12,
-                      ),
-                    ),
-                  ),
+                 Container(
+  padding: const EdgeInsets.symmetric(
+    horizontal: 5,
+    vertical: 1,
+  ),
+  decoration: BoxDecoration(
+    color: Colors.black.withOpacity(0.7), // 属性ごとに色分けしたい場合はここを工夫
+    borderRadius: BorderRadius.circular(15),
+  ),
+  child: Text(
+    card['type'] ?? '',
+    style: const TextStyle(
+      color: Colors.white,
+      fontWeight: FontWeight.bold,
+      fontSize: 12,
+    ),
+  ),
+),
 
                   const SizedBox(height: 8),
 

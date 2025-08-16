@@ -11,7 +11,7 @@ void main() async {
   try {
     await Firebase.initializeApp(
       options: DefaultFirebaseOptions.currentPlatform,
-    );
+    );await DataUploadPage().uploadData();
   } catch (e) {
     debugPrint('Firebase 初期化エラー: $e'); // 初期化エラーをログに出力
   }
